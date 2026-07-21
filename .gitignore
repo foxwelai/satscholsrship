@@ -33,6 +33,12 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# local SQLite artifacts from the pre-Postgres prototype / stray local runs
+/data/
+
+# user-uploaded photos and passbook scans (not committed; keep on the server/volume)
+/public/uploads/
+
 # vercel
 .vercel
 

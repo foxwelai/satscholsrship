@@ -1,65 +1,127 @@
-import Image from "next/image";
+import Link from "next/link";
+import { and, desc, eq, sql } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { students, petes, applications } from "@/lib/schema";
+import { getSession } from "@/lib/auth";
+import { currentFinancialYear } from "@/lib/constants";
 
-export default function Home() {
+export const dynamic = "force-dynamic";
+
+export default async function Dashboard() {
+  const session = await getSession();
+  if (!session) return null;
+  const fy = currentFinancialYear();
+  const peteScope = session.role === "pete_admin" ? eq(students.peteId, session.peteId!) : undefined;
+
+  const [totals] = await db
+    .select({
+      total: sql<number>`count(distinct ${students.id})::int`,
+    })
+    .from(students)
+    .where(peteScope);
+
+  const [thisYear] = await db
+    .select({
+      applied: sql<number>`count(*)::int`,
+      approved: sql<number>`sum(case when ${applications.status} = 'Approved' then 1 else 0 end)::int`,
+      closed: sql<number>`sum(case when ${applications.closed} then 1 else 0 end)::int`,
+    })
+    .from(applications)
+    .innerJoin(students, eq(students.id, applications.studentId))
+    .where(and(eq(applications.financialYear, fy), peteScope));
+
+  const [peteCount] = session.role === "super_admin"
+    ? await db.select({ c: sql<number>`count(*)::int` }).from(petes).where(eq(petes.active, true))
+    : [{ c: 1 }];
+
+  const recent = await db
+    .select({
+      id: students.id,
+      application_id: applications.id,
+      student_id: students.studentId,
+      name: students.name,
+      pete_name: petes.name,
+      current_class: applications.currentClass,
+      status: applications.status,
+      financial_year: applications.financialYear,
+    })
+    .from(applications)
+    .innerJoin(students, eq(students.id, applications.studentId))
+    .innerJoin(petes, eq(petes.id, students.peteId))
+    .where(peteScope)
+    .orderBy(desc(applications.createdAt))
+    .limit(8);
+
+  const stats = [
+    { label: "Total Students", value: totals?.total ?? 0, color: "bg-red-800" },
+    { label: `Applications in ${fy}`, value: thisYear?.applied ?? 0, color: "bg-amber-700" },
+    { label: `Approved in ${fy}`, value: thisYear?.approved ?? 0, color: "bg-green-700" },
+    session.role === "super_admin"
+      ? { label: "Active Petes", value: peteCount?.c ?? 0, color: "bg-blue-800" }
+      : { label: `Closed in ${fy}`, value: thisYear?.closed ?? 0, color: "bg-blue-800" },
+  ];
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        {stats.map((s) => (
+          <div key={s.label} className={`rounded-lg ${s.color} p-4 text-white shadow`}>
+            <p className="text-3xl font-bold">{s.value}</p>
+            <p className="text-sm opacity-90">{s.label}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <Link href="/students/new" className="rounded-lg border-2 border-red-800 bg-white p-5 shadow hover:bg-red-50">
+          <p className="text-lg font-bold text-red-900">📝 New Application</p>
+          <p className="text-sm text-gray-600">Register a student and auto-generate their ID (e.g. MJS/26/0001)</p>
+        </Link>
+        <Link href="/students" className="rounded-lg border-2 border-red-800 bg-white p-5 shadow hover:bg-red-50">
+          <p className="text-lg font-bold text-red-900">🔍 Search Students</p>
+          <p className="text-sm text-gray-600">Find by Aadhar number, Student ID or name — renew for next year</p>
+        </Link>
+        <Link href="/reports" className="rounded-lg border-2 border-red-800 bg-white p-5 shadow hover:bg-red-50">
+          <p className="text-lg font-bold text-red-900">📊 Reports</p>
+          <p className="text-sm text-gray-600">Selection by pete, bank, and class / category</p>
+        </Link>
+      </div>
+
+      <div className="rounded-lg bg-white p-4 shadow">
+        <h2 className="mb-3 font-bold text-red-900">Recent Applications</h2>
+        {recent.length === 0 ? (
+          <p className="text-sm text-gray-500">No students registered yet. Start with a new application.</p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b text-left text-gray-600">
+                <th className="py-2">Student ID</th>
+                <th>Name</th>
+                <th>Pete</th>
+                <th>Class</th>
+                <th>Financial Year</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recent.map((r) => (
+                <tr key={r.application_id} className="border-b last:border-0 hover:bg-amber-50">
+                  <td className="py-2">
+                    <Link href={`/students/${r.id}`} className="font-semibold text-red-800 hover:underline">
+                      {r.student_id}
+                    </Link>
+                  </td>
+                  <td>{r.name}</td>
+                  <td>{r.pete_name}</td>
+                  <td>{r.current_class}</td>
+                  <td>{r.financial_year}</td>
+                  <td>{r.status}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
   );
 }
