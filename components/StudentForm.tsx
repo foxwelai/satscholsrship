@@ -62,9 +62,9 @@ function Input({
   maxLength?: number;
 }) {
   return (
-    <label className="block text-sm">
-      <span className="font-medium text-gray-700">
-        {label} {required && <span className="text-red-600">*</span>}
+    <label className="block">
+      <span className="label">
+        {label} {required && <span className="text-maroon-700">*</span>}
       </span>
       <input
         type={type}
@@ -73,7 +73,7 @@ function Input({
         placeholder={placeholder}
         maxLength={maxLength}
         onChange={(e) => onChange(e.target.value)}
-        className="mt-1 w-full rounded border border-gray-300 px-3 py-2 focus:border-red-700 focus:outline-none"
+        className="input"
       />
     </label>
   );
@@ -81,10 +81,13 @@ function Input({
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <fieldset className="rounded-lg border-2 border-red-200 bg-white p-4 shadow-sm">
-      <legend className="px-2 text-base font-bold text-red-900">{title}</legend>
-      <div className="grid gap-4 md:grid-cols-2">{children}</div>
-    </fieldset>
+    <section className="card overflow-hidden">
+      <div className="card-header">
+        <span className="accent-bar" />
+        <h2 className="card-title">{title}</h2>
+      </div>
+      <div className="grid gap-4 p-5 md:grid-cols-2">{children}</div>
+    </section>
   );
 }
 
@@ -122,12 +125,12 @@ function FileUpload({
   const isPdf = path.endsWith(".pdf");
   return (
     <div className="text-sm">
-      <span className="font-medium text-gray-700">{label}</span>
-      <div className="mt-1 flex items-start gap-3">
-        <div className="flex h-28 w-24 items-center justify-center overflow-hidden rounded border-2 border-dashed border-gray-300 bg-gray-50 text-xs text-gray-400">
+      <span className="label">{label}</span>
+      <div className="mt-1 flex items-start gap-3.5">
+        <div className="flex h-28 w-24 items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-cream-300 bg-cream-50 text-xs text-stone-400">
           {path ? (
             isPdf ? (
-              <a href={path} target="_blank" className="p-2 text-center text-red-700 underline">
+              <a href={path} target="_blank" className="p-2 text-center font-semibold text-maroon-700 underline">
                 View PDF
               </a>
             ) : (
@@ -138,7 +141,7 @@ function FileUpload({
             "No file"
           )}
         </div>
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <input
             ref={inputRef}
             type="file"
@@ -151,7 +154,7 @@ function FileUpload({
             type="button"
             disabled={busy}
             onClick={() => inputRef.current?.click()}
-            className="rounded bg-blue-800 px-3 py-1.5 text-white hover:bg-blue-700 disabled:opacity-50"
+            className="btn-navy px-3.5 py-2 text-xs"
           >
             {busy ? "Uploading…" : path ? "Replace" : "📷 Scan / Upload"}
           </button>
@@ -159,13 +162,13 @@ function FileUpload({
             <button
               type="button"
               onClick={() => onUploaded("")}
-              className="block text-xs text-red-600 hover:underline"
+              className="block cursor-pointer text-xs font-semibold text-red-600 hover:underline"
             >
               Remove
             </button>
           )}
-          {error && <p className="text-xs text-red-600">{error}</p>}
-          <p className="text-xs text-gray-500">JPG / PNG / PDF, max 10 MB. On mobile, opens the camera.</p>
+          {error && <p className="text-xs font-semibold text-red-600">{error}</p>}
+          <p className="text-xs text-stone-400">JPG / PNG / PDF, max 10 MB. On mobile, opens the camera.</p>
         </div>
       </div>
     </div>
@@ -240,29 +243,21 @@ export default function StudentForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      {error && (
-        <div className="rounded border-2 border-red-500 bg-red-50 px-4 py-3 font-semibold text-red-800">
-          {error}
-        </div>
-      )}
+      {error && <div className="alert-error">{error}</div>}
 
       <Section title="A) Student Details">
-        <label className="block text-sm">
-          <span className="font-medium text-gray-700">
-            Pete (18 Petes under the Temple) <span className="text-red-600">*</span>
+        <label className="block">
+          <span className="label">
+            Pete (18 Petes under the Temple) <span className="text-maroon-700">*</span>
           </span>
           {isPeteLocked ? (
-            <input
-              disabled
-              value={session?.peteName ?? ""}
-              className="mt-1 w-full rounded border border-gray-300 bg-gray-100 px-3 py-2 text-gray-600"
-            />
+            <input disabled value={session?.peteName ?? ""} className="input" />
           ) : (
             <select
               required
               value={values.pete_id}
               onChange={(e) => set("pete_id")(e.target.value)}
-              className="mt-1 w-full rounded border border-gray-300 px-3 py-2 focus:border-red-700 focus:outline-none"
+              className="input"
             >
               <option value="">— Select Pete —</option>
               {petes
@@ -299,7 +294,13 @@ export default function StudentForm({
 
       <Section title="B) Family Details">
         <Input label="Father's Name" value={values.father_name} onChange={set("father_name")} />
-        <Input label="Full Address" value={values.address} onChange={set("address")} />
+        <Input
+          label="Residential Address / Location"
+          value={values.address}
+          onChange={set("address")}
+          required
+          placeholder="e.g. Bolandugutturoad, Hosabettu, Manjeshwar"
+        />
         <Input label="Mother's Name" value={values.mother_name} onChange={set("mother_name")} />
         <Input label="Mother's Occupation" value={values.mother_occupation} onChange={set("mother_occupation")} />
         <Input label="Family Annual Income (₹)" value={values.family_income} onChange={set("family_income")} />
@@ -322,7 +323,9 @@ export default function StudentForm({
             placeholder="e.g. SBIN0001234"
           />
           {ifscStatus && (
-            <p className={`mt-1 text-xs ${ifscStatus.startsWith("✓") ? "text-green-700" : "text-amber-700"}`}>
+            <p
+              className={`mt-1.5 text-xs font-semibold ${ifscStatus.startsWith("✓") ? "text-emerald-700" : "text-gold-600"}`}
+            >
               {ifscStatus}
             </p>
           )}
@@ -342,7 +345,7 @@ export default function StudentForm({
       <button
         type="submit"
         disabled={saving}
-        className="w-full rounded-lg bg-red-800 py-3 text-lg font-bold text-white shadow hover:bg-red-700 disabled:opacity-50 md:w-auto md:px-10"
+        className="btn-primary w-full py-3.5 text-base md:w-auto md:px-12"
       >
         {saving ? "Saving…" : submitLabel}
       </button>

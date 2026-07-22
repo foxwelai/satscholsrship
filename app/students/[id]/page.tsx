@@ -13,6 +13,7 @@ type Application = {
   currentClass: string;
   prevYearMarks: string;
   annualFee: string;
+  scholarshipAmount: number;
   status: string;
   closed: boolean;
   approvedAt: string | null;
@@ -76,98 +77,99 @@ export default function StudentDetailPage() {
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-red-900">
-            {student.name}{" "}
-            <span className="ml-2 rounded bg-red-800 px-2 py-0.5 font-mono text-sm text-white">
+          <h1 className="page-title flex flex-wrap items-center gap-3">
+            {student.name}
+            <span className="rounded-lg bg-gradient-to-b from-maroon-700 to-maroon-800 px-2.5 py-1 font-mono text-sm font-bold tracking-wider text-white shadow-sm">
               {student.student_id}
             </span>
           </h1>
-          <p className="text-sm text-gray-600">{student.pete_name} Pete</p>
+          <p className="page-subtitle">🛕 {student.pete_name} Pete</p>
         </div>
         <div className="flex gap-2">
-          <Link
-            href={`/students/${id}/print`}
-            className="rounded bg-blue-800 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-          >
+          <Link href={`/students/${id}/print`} className="btn-navy">
             🖨️ Print Application
           </Link>
           {session?.role === "super_admin" && (
-            <button
-              onClick={handleDelete}
-              className="rounded border-2 border-red-600 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50"
-            >
+            <button onClick={handleDelete} className="btn-danger-outline">
               Delete
             </button>
           )}
         </div>
       </div>
 
-      {saved && (
-        <div className="mb-4 rounded border-2 border-green-500 bg-green-50 px-4 py-2 font-semibold text-green-800">
-          ✓ Changes saved
-        </div>
-      )}
+      {saved && <div className="alert-success mb-4">✓ Changes saved</div>}
 
-      <div className="mb-5 rounded-lg bg-white p-4 shadow">
-        <div className="mb-2 flex items-center justify-between">
-          <h2 className="font-bold text-red-900">Scholarship Applications by Year</h2>
+      <div className="card mb-6 overflow-hidden">
+        <div className="card-header justify-between">
+          <div className="flex items-center gap-2.5">
+            <span className="accent-bar" />
+            <h2 className="card-title">Scholarship Applications by Year</h2>
+          </div>
           <Link
             href={`/students/${id}/applications/new`}
-            className="rounded bg-green-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-green-600"
+            className="btn-success px-3.5 py-1.5 text-xs"
           >
-            + Add Next Year Application
+            + Add Next Year
           </Link>
         </div>
         {student.applications.length === 0 ? (
-          <p className="text-sm text-gray-500">No applications recorded yet.</p>
+          <p className="p-5 text-sm text-stone-400">No applications recorded yet.</p>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b text-left text-gray-600">
-                <th className="py-1.5">Financial Year</th>
-                <th>Class</th>
-                <th>Category</th>
-                <th>Fee</th>
-                <th>Status</th>
-                <th>Closed</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {student.applications.map((a) => (
-                <tr key={a.id} className="border-b last:border-0">
-                  <td className="py-1.5 font-semibold">{a.financialYear}</td>
-                  <td>{a.currentClass}</td>
-                  <td>{a.category}</td>
-                  <td>{a.annualFee}</td>
-                  <td>
-                    <span
-                      className={`rounded px-2 py-0.5 text-xs font-semibold ${
-                        a.status === "Approved"
-                          ? "bg-green-100 text-green-800"
-                          : a.status === "Rejected"
-                          ? "bg-red-100 text-red-800"
-                          : "bg-amber-100 text-amber-800"
-                      }`}
-                    >
-                      {a.status}
-                    </span>
-                  </td>
-                  <td>{a.closed ? "✓ Closed" : "—"}</td>
-                  <td>
-                    <Link
-                      href={`/students/${id}/applications/${a.id}`}
-                      className="font-semibold text-blue-800 hover:underline"
-                    >
-                      Edit
-                    </Link>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-cream-200 text-left text-[11px] font-bold tracking-wider text-stone-400 uppercase">
+                  <th className="px-5 py-2.5">Financial Year</th>
+                  <th className="py-2.5 pr-4">Class</th>
+                  <th className="py-2.5 pr-4">Category</th>
+                  <th className="py-2.5 pr-4">Fee</th>
+                  <th className="py-2.5 pr-4">Scholarship</th>
+                  <th className="py-2.5 pr-4">Status</th>
+                  <th className="py-2.5 pr-4">Closed</th>
+                  <th className="py-2.5 pr-5"></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {student.applications.map((a) => (
+                  <tr key={a.id} className="border-b border-cream-200/70 last:border-0 hover:bg-gold-100/30">
+                    <td className="px-5 py-2.5 font-semibold text-maroon-900">{a.financialYear}</td>
+                    <td className="py-2.5 pr-4">{a.currentClass}</td>
+                    <td className="py-2.5 pr-4">{a.category}</td>
+                    <td className="py-2.5 pr-4">{a.annualFee}</td>
+                    <td className="py-2.5 pr-4 font-semibold text-navy-800">
+                      ₹{a.scholarshipAmount}
+                    </td>
+                    <td className="py-2.5 pr-4">
+                      <span
+                        className={
+                          a.status === "Approved"
+                            ? "badge-green"
+                            : a.status === "Rejected"
+                              ? "badge-red"
+                              : "badge-amber"
+                        }
+                      >
+                        {a.status}
+                      </span>
+                    </td>
+                    <td className="py-2.5 pr-4 text-xs font-semibold text-stone-500">
+                      {a.closed ? "✓ Closed" : "—"}
+                    </td>
+                    <td className="py-2.5 pr-5 text-right">
+                      <Link
+                        href={`/students/${id}/applications/${a.id}`}
+                        className="text-xs font-bold text-navy-700 hover:underline"
+                      >
+                        Edit →
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 

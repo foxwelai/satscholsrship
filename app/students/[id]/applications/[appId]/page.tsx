@@ -17,6 +17,7 @@ type StudentDetail = {
     currentClass: string;
     prevYearMarks: string;
     annualFee: string;
+    scholarshipAmount: number;
     status: string;
     closed: boolean;
   }[];
@@ -65,32 +66,32 @@ export default function EditApplicationPage() {
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-red-900">
+          <h1 className="page-title">
             {student.name} — {app.financialYear}
           </h1>
-          <p className="text-sm text-gray-600">
-            {student.student_id} · {student.pete_name} Pete
+          <p className="page-subtitle">
+            <span className="font-mono font-semibold text-maroon-800">{student.student_id}</span> ·{" "}
+            {student.pete_name} Pete
           </p>
         </div>
-        <Link href={`/students/${id}`} className="text-sm font-semibold text-red-800 hover:underline">
+        <Link href={`/students/${id}`} className="btn-secondary px-3.5 py-2 text-xs">
           ← Back to Student
         </Link>
       </div>
 
-      {saved && (
-        <div className="mb-4 rounded border-2 border-green-500 bg-green-50 px-4 py-2 font-semibold text-green-800">
-          ✓ Application updated
-        </div>
-      )}
+      {saved && <div className="alert-success mb-4">✓ Application updated</div>}
 
       {app.closed && (
-        <div className="mb-4 flex items-center justify-between rounded border-2 border-gray-300 bg-gray-50 px-4 py-2">
-          <p className="font-semibold text-gray-700">
-            This year&apos;s scholarship is closed ({app.status}).
+        <div className="mb-4 flex items-center justify-between rounded-xl border border-stone-300 bg-stone-100/80 px-4 py-3">
+          <p className="text-sm font-semibold text-stone-600">
+            🔒 This year&apos;s scholarship is closed ({app.status}).
           </p>
-          <button onClick={handleReopen} className="text-sm font-semibold text-blue-800 hover:underline">
+          <button
+            onClick={handleReopen}
+            className="cursor-pointer text-sm font-bold text-navy-700 hover:underline"
+          >
             Reopen
           </button>
         </div>
@@ -105,6 +106,7 @@ export default function EditApplicationPage() {
           current_class: app.currentClass,
           prev_year_marks: app.prevYearMarks,
           annual_fee: app.annualFee,
+          scholarship_amount: String(app.scholarshipAmount),
           status: app.status,
         }}
         onSave={handleSave}

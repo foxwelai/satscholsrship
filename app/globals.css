@@ -1,7 +1,167 @@
 @import "tailwindcss";
 
+/* ————— Palette drawn from the temple logo: maroon ring, gold accents,
+   navy ribbon, cream field ————— */
+@theme {
+  --color-maroon-50: #fbf4f4;
+  --color-maroon-100: #f4e3e3;
+  --color-maroon-200: #e7c6c6;
+  --color-maroon-300: #d49d9d;
+  --color-maroon-500: #a83a3c;
+  --color-maroon-600: #93292b;
+  --color-maroon-700: #7e1d1f;
+  --color-maroon-800: #6a1416;
+  --color-maroon-900: #571012;
+  --color-maroon-950: #3d0a0b;
+
+  --color-gold-100: #f7eed3;
+  --color-gold-200: #eeddad;
+  --color-gold-300: #e2c777;
+  --color-gold-400: #d4af37;
+  --color-gold-500: #bd9527;
+  --color-gold-600: #9c771c;
+  --color-gold-700: #7a5b16;
+
+  --color-navy-100: #e3eaf2;
+  --color-navy-600: #2e5077;
+  --color-navy-700: #254264;
+  --color-navy-800: #1e3a5f;
+  --color-navy-900: #172c48;
+
+  --color-cream-50: #fdfbf7;
+  --color-cream-100: #f9f4ea;
+  --color-cream-200: #f1e8d6;
+  --color-cream-300: #e4d5b8;
+}
+
+@theme inline {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-marcellus), Georgia, serif;
+}
+
 body {
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-cream-100);
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(212, 175, 55, 0.08), transparent),
+    radial-gradient(ellipse 60% 40% at 100% 100%, rgba(126, 29, 31, 0.04), transparent);
+  background-attachment: fixed;
+  color: #292524;
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl border border-cream-300/70 bg-white shadow-[0_1px_3px_rgba(61,10,11,0.06),0_8px_24px_-12px_rgba(61,10,11,0.12)];
+  }
+
+  .card-header {
+    @apply flex items-center gap-2.5 rounded-t-2xl border-b border-cream-200 bg-gradient-to-r from-maroon-50 via-cream-50 to-transparent px-5 py-3;
+  }
+
+  .card-title {
+    @apply font-display text-[15px] tracking-wide text-maroon-900;
+  }
+
+  .accent-bar {
+    @apply h-5 w-1 shrink-0 rounded-full bg-gradient-to-b from-maroon-700 to-gold-400;
+  }
+
+  .page-title {
+    @apply font-display text-2xl tracking-wide text-maroon-900;
+  }
+
+  .page-subtitle {
+    @apply mt-1 text-sm text-stone-500;
+  }
+
+  .label {
+    @apply mb-1.5 block text-[13px] font-semibold text-stone-600;
+  }
+
+  .input {
+    @apply w-full rounded-xl border border-stone-300 bg-white px-3.5 py-2.5 text-sm text-stone-800 shadow-sm outline-none transition placeholder:text-stone-400 focus:border-maroon-600 focus:ring-2 focus:ring-maroon-600/15 disabled:bg-stone-100 disabled:text-stone-500;
+  }
+
+  .btn-base {
+    @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 bg-gradient-to-b from-maroon-700 to-maroon-800 text-white shadow-[0_2px_8px_-2px_rgba(106,20,22,0.5),inset_0_1px_0_rgba(255,255,255,0.15)] hover:from-maroon-600 hover:to-maroon-700;
+  }
+
+  .btn-secondary {
+    @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 border border-maroon-200 bg-white text-maroon-800 shadow-sm hover:border-maroon-300 hover:bg-maroon-50;
+  }
+
+  .btn-success {
+    @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 bg-gradient-to-b from-emerald-600 to-emerald-700 text-white shadow-[0_2px_8px_-2px_rgba(4,120,87,0.5),inset_0_1px_0_rgba(255,255,255,0.15)] hover:from-emerald-500 hover:to-emerald-600;
+  }
+
+  .btn-navy {
+    @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 bg-gradient-to-b from-navy-700 to-navy-800 text-white shadow-[0_2px_8px_-2px_rgba(30,58,95,0.5),inset_0_1px_0_rgba(255,255,255,0.15)] hover:from-navy-600 hover:to-navy-700;
+  }
+
+  .btn-danger-outline {
+    @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 border border-red-300 bg-white text-red-700 shadow-sm hover:border-red-400 hover:bg-red-50;
+  }
+
+  .table-card {
+    @apply overflow-x-auto rounded-2xl border border-cream-300/70 bg-white shadow-[0_1px_3px_rgba(61,10,11,0.06),0_8px_24px_-12px_rgba(61,10,11,0.12)];
+  }
+
+  .table-card table {
+    @apply w-full text-sm;
+  }
+
+  .table-card thead tr {
+    background: linear-gradient(to bottom, var(--color-maroon-800), var(--color-maroon-900));
+  }
+
+  .table-card thead th {
+    @apply px-4 py-3 text-left text-[11px] font-bold tracking-[0.08em] text-cream-100 uppercase;
+  }
+
+  .table-card tbody td {
+    @apply border-t border-cream-200/80 px-4 py-2.5 align-middle;
+  }
+
+  .table-card tbody tr {
+    @apply transition-colors hover:bg-gold-100/40;
+  }
+
+  .badge-green {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold bg-emerald-100 text-emerald-800 ring-1 ring-emerald-200;
+  }
+
+  .badge-amber {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold bg-gold-100 text-gold-700 ring-1 ring-gold-200;
+  }
+
+  .badge-red {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold bg-red-100 text-red-800 ring-1 ring-red-200;
+  }
+
+  .badge-gray {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold bg-stone-100 text-stone-500 ring-1 ring-stone-200;
+  }
+
+  .badge-navy {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold bg-navy-100 text-navy-800 ring-1 ring-navy-100;
+  }
+
+  .alert-success {
+    @apply rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800;
+  }
+
+  .alert-error {
+    @apply rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800;
+  }
+}
+
+/* gold hairline used under the header */
+.gold-line {
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--color-gold-400) 18%, var(--color-gold-300) 50%, var(--color-gold-400) 82%, transparent);
 }
 
 @media print {

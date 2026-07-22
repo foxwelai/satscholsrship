@@ -49,88 +49,99 @@ export default function PetesPage() {
 
   return (
     <div>
-      <h1 className="mb-1 text-xl font-bold text-red-900">Manage Petes</h1>
-      <p className="mb-4 text-sm text-gray-600">
+      <h1 className="page-title">Manage Petes</h1>
+      <p className="page-subtitle mb-6">
         The short code is used to generate Student IDs — e.g. Manjeshwar (MJS) →{" "}
-        <span className="font-mono">MJS/26/0001</span>. Changing a short code only affects new
-        registrations.
+        <span className="font-mono font-semibold text-maroon-800">MJS/26/0001</span>. Changing a
+        short code only affects new registrations.
       </p>
 
-      <form onSubmit={save} className="mb-6 rounded-lg border-2 border-red-200 bg-white p-4 shadow-sm">
-        <h2 className="mb-3 font-bold text-red-900">{editingId ? "Edit Pete" : "Add New Pete"}</h2>
-        {error && <p className="mb-2 font-semibold text-red-700">{error}</p>}
-        <div className="grid gap-3 md:grid-cols-5">
-          <input
-            required
-            placeholder="Pete name *"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            className="rounded border border-gray-300 px-3 py-2 focus:border-red-700 focus:outline-none"
-          />
-          <input
-            required
-            placeholder="Short code (e.g. MJS) *"
-            value={form.short_code}
-            maxLength={5}
-            onChange={(e) => setForm({ ...form, short_code: e.target.value.toUpperCase() })}
-            className="rounded border border-gray-300 px-3 py-2 font-mono focus:border-red-700 focus:outline-none"
-          />
-          <input
-            placeholder="Member name"
-            value={form.member_name}
-            onChange={(e) => setForm({ ...form, member_name: e.target.value })}
-            className="rounded border border-gray-300 px-3 py-2 focus:border-red-700 focus:outline-none"
-          />
-          <input
-            placeholder="Member mobile"
-            value={form.member_mobile}
-            onChange={(e) => setForm({ ...form, member_mobile: e.target.value })}
-            className="rounded border border-gray-300 px-3 py-2 focus:border-red-700 focus:outline-none"
-          />
-          <div className="flex gap-2">
-            <button className="flex-1 rounded bg-red-800 px-4 py-2 font-semibold text-white hover:bg-red-700">
-              {editingId ? "Save" : "+ Add"}
-            </button>
-            {editingId && (
-              <button
-                type="button"
-                onClick={() => {
-                  setEditingId(null);
-                  setForm(EMPTY);
-                  setError("");
-                }}
-                className="rounded border border-gray-400 px-3 py-2 text-gray-600 hover:bg-gray-100"
-              >
-                Cancel
-              </button>
-            )}
+      <form onSubmit={save} className="card mb-6 overflow-hidden">
+        <div className="card-header">
+          <span className="accent-bar" />
+          <h2 className="card-title">{editingId ? "Edit Pete" : "Add New Pete"}</h2>
+        </div>
+        <div className="p-5">
+          {error && <div className="alert-error mb-4">{error}</div>}
+          <div className="grid gap-3 md:grid-cols-5">
+            <input
+              required
+              placeholder="Pete name *"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              className="input"
+            />
+            <input
+              required
+              placeholder="Short code (e.g. MJS) *"
+              value={form.short_code}
+              maxLength={5}
+              onChange={(e) => setForm({ ...form, short_code: e.target.value.toUpperCase() })}
+              className="input font-mono"
+            />
+            <input
+              placeholder="Member name"
+              value={form.member_name}
+              onChange={(e) => setForm({ ...form, member_name: e.target.value })}
+              className="input"
+            />
+            <input
+              placeholder="Member mobile"
+              value={form.member_mobile}
+              onChange={(e) => setForm({ ...form, member_mobile: e.target.value })}
+              className="input"
+            />
+            <div className="flex gap-2">
+              <button className="btn-primary flex-1">{editingId ? "Save" : "+ Add"}</button>
+              {editingId && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingId(null);
+                    setForm(EMPTY);
+                    setError("");
+                  }}
+                  className="btn-secondary"
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </form>
 
-      <div className="overflow-x-auto rounded-lg bg-white shadow">
-        <table className="w-full text-sm">
-          <thead className="bg-red-900 text-left text-white">
+      <div className="table-card">
+        <table>
+          <thead>
             <tr>
-              <th className="px-3 py-2.5">Pete</th>
-              <th className="px-3 py-2.5">Short Code</th>
-              <th className="px-3 py-2.5">Member</th>
-              <th className="px-3 py-2.5">Mobile</th>
-              <th className="px-3 py-2.5">Students</th>
-              <th className="px-3 py-2.5">Status</th>
-              <th className="px-3 py-2.5">Actions</th>
+              <th>Pete</th>
+              <th>Short Code</th>
+              <th>Member</th>
+              <th>Mobile</th>
+              <th>Students</th>
+              <th>Status</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {petes.map((p) => (
-              <tr key={p.id} className={`border-b last:border-0 ${p.active ? "" : "bg-gray-50 text-gray-400"}`}>
-                <td className="px-3 py-2 font-semibold">{p.name}</td>
-                <td className="px-3 py-2 font-mono">{p.short_code}</td>
-                <td className="px-3 py-2">{p.member_name}</td>
-                <td className="px-3 py-2">{p.member_mobile}</td>
-                <td className="px-3 py-2">{p.student_count}</td>
-                <td className="px-3 py-2">{p.active ? "Active" : "Inactive"}</td>
-                <td className="px-3 py-2">
+              <tr key={p.id} className={p.active ? "" : "bg-stone-50 text-stone-400"}>
+                <td className="font-semibold">{p.name}</td>
+                <td>
+                  <span className="rounded-md bg-maroon-50 px-2 py-0.5 font-mono text-xs font-bold text-maroon-800 ring-1 ring-maroon-100">
+                    {p.short_code}
+                  </span>
+                </td>
+                <td>{p.member_name}</td>
+                <td>{p.member_mobile}</td>
+                <td className="font-semibold">{p.student_count}</td>
+                <td>
+                  <span className={p.active ? "badge-green" : "badge-gray"}>
+                    {p.active ? "Active" : "Inactive"}
+                  </span>
+                </td>
+                <td>
                   <button
                     onClick={() => {
                       setEditingId(p.id);
@@ -143,11 +154,14 @@ export default function PetesPage() {
                       setError("");
                       window.scrollTo({ top: 0, behavior: "smooth" });
                     }}
-                    className="mr-3 font-semibold text-blue-800 hover:underline"
+                    className="mr-3 cursor-pointer text-xs font-bold text-navy-700 hover:underline"
                   >
                     Edit
                   </button>
-                  <button onClick={() => toggleActive(p)} className="text-gray-600 hover:underline">
+                  <button
+                    onClick={() => toggleActive(p)}
+                    className="cursor-pointer text-xs font-semibold text-stone-500 hover:underline"
+                  >
                     {p.active ? "Deactivate" : "Activate"}
                   </button>
                 </td>

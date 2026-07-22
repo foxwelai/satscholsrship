@@ -34,6 +34,7 @@ export async function POST(req: NextRequest) {
         currentClass: body.current_class ?? "",
         prevYearMarks: body.prev_year_marks ?? "",
         annualFee: body.annual_fee ?? "",
+        scholarshipAmount: Number(body.scholarship_amount) || 0,
         status: approveAndClose ? "Approved" : "Applied",
         closed: approveAndClose,
         approvedAt: approveAndClose ? now : null,

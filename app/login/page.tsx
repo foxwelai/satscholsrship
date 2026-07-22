@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useState } from "react";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 
 function LoginForm() {
@@ -31,49 +32,79 @@ function LoginForm() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-amber-50/40 px-4">
-      <form
-        onSubmit={handleSubmit}
-        className="w-full max-w-sm rounded-lg border-2 border-red-800 bg-white p-8 shadow-lg"
-      >
-        <div className="mb-6 text-center">
-          <div className="text-3xl">🛕</div>
-          <h1 className="mt-1 text-lg font-bold text-red-900">
-            Shrimath Ananteshwar Temple, Manjeshwar
-          </h1>
-          <p className="text-sm text-gray-600">Scholarship Portal Login</p>
-        </div>
-        {error && (
-          <div className="mb-4 rounded border-2 border-red-500 bg-red-50 px-3 py-2 text-sm font-semibold text-red-800">
-            {error}
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
+      {/* backdrop flourishes */}
+      <div
+        aria-hidden
+        className="absolute inset-0 -z-10"
+        style={{
+          background:
+            "radial-gradient(ellipse 70% 45% at 50% -5%, rgba(126,29,31,0.10), transparent), radial-gradient(ellipse 55% 40% at 8% 100%, rgba(212,175,55,0.14), transparent), radial-gradient(ellipse 55% 40% at 95% 95%, rgba(30,58,95,0.08), transparent)",
+        }}
+      />
+      <div className="w-full max-w-105">
+        <div className="card overflow-hidden">
+          <div className="h-1.5 bg-gradient-to-r from-maroon-800 via-gold-400 to-maroon-800" />
+          <div className="px-8 pt-8 pb-9 sm:px-10">
+            <div className="text-center">
+              <Image
+                src="/logo.png"
+                alt="Srimath Anantheshwar Temple logo"
+                width={112}
+                height={112}
+                priority
+                unoptimized
+                className="mx-auto h-28 w-28 rounded-full object-contain drop-shadow-[0_6px_16px_rgba(106,20,22,0.25)]"
+              />
+              <h1 className="mt-4 font-display text-[22px] leading-snug tracking-wide text-maroon-900">
+                Srimath Anantheshwar Temple
+              </h1>
+              <p className="mt-0.5 text-[11px] font-semibold tracking-[0.28em] text-gold-600 uppercase">
+                Scholarship Portal
+              </p>
+              <div className="mx-auto mt-4 flex items-center gap-3">
+                <span className="h-px flex-1 bg-gradient-to-r from-transparent to-cream-300" />
+                <span className="text-xs text-stone-400">Sign in to continue</span>
+                <span className="h-px flex-1 bg-gradient-to-l from-transparent to-cream-300" />
+              </div>
+            </div>
+
+            {error && <div className="alert-error mt-5">{error}</div>}
+
+            <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+              <label className="block">
+                <span className="label">Username</span>
+                <input
+                  autoFocus
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="input"
+                  placeholder="your username"
+                />
+              </label>
+              <label className="block">
+                <span className="label">Password</span>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="input"
+                  placeholder="••••••••"
+                />
+              </label>
+              <button type="submit" disabled={busy} className="btn-primary w-full py-3 text-base">
+                {busy ? "Signing in…" : "Sign In"}
+              </button>
+            </form>
           </div>
-        )}
-        <label className="block text-sm">
-          <span className="font-medium text-gray-700">Username</span>
-          <input
-            autoFocus
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            className="mt-1 w-full rounded border border-gray-300 px-3 py-2 focus:border-red-700 focus:outline-none"
-          />
-        </label>
-        <label className="mt-4 block text-sm">
-          <span className="font-medium text-gray-700">Password</span>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="mt-1 w-full rounded border border-gray-300 px-3 py-2 focus:border-red-700 focus:outline-none"
-          />
-        </label>
-        <button
-          type="submit"
-          disabled={busy}
-          className="mt-6 w-full rounded-lg bg-red-800 py-2.5 font-bold text-white shadow hover:bg-red-700 disabled:opacity-50"
-        >
-          {busy ? "Signing in…" : "Sign In"}
-        </button>
-      </form>
+        </div>
+        <p className="mt-5 text-center font-display text-sm tracking-wide text-maroon-800/60">
+          ॥ विद्या ददाति विनयम् ॥
+        </p>
+        <p className="mt-1.5 text-center text-xs text-stone-400">
+          Temple Office: 04998-272221 · 9188599221 · samjstemple@gmail.com
+        </p>
+      </div>
     </div>
   );
 }

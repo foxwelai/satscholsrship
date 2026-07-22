@@ -81,6 +81,7 @@ export async function GET(req: NextRequest) {
       status: latest?.status ?? "—",
       closed: latest?.closed ?? false,
       financial_year: latest?.financialYear ?? "",
+      scholarship_amount: latest?.scholarshipAmount ?? 0,
     };
   });
 
@@ -94,6 +95,9 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   if (!body.name?.trim()) {
     return NextResponse.json({ error: "Student name is required" }, { status: 400 });
+  }
+  if (!body.address?.trim()) {
+    return NextResponse.json({ error: "Residential address / location is required" }, { status: 400 });
   }
   const aadhar = (body.aadhar ?? "").replace(/\D/g, "");
   if (!/^\d{12}$/.test(aadhar)) {
@@ -141,6 +145,7 @@ export async function POST(req: NextRequest) {
         currentClass: body.current_class ?? "",
         prevYearMarks: body.prev_year_marks ?? "",
         annualFee: body.annual_fee ?? "",
+        scholarshipAmount: Number(body.scholarship_amount) || 0,
         status: "Applied",
         createdBy: session.userId,
       });

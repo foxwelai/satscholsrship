@@ -35,6 +35,7 @@ export async function GET(req: NextRequest) {
       applied: sql<number>`sum(case when ${applications.status} = 'Applied' then 1 else 0 end)::int`,
       rejected: sql<number>`sum(case when ${applications.status} = 'Rejected' then 1 else 0 end)::int`,
       closed: sql<number>`sum(case when ${applications.closed} then 1 else 0 end)::int`,
+      total_amount: sql<number>`sum(${applications.scholarshipAmount})::int`,
     })
     .from(applications)
     .innerJoin(students, eq(students.id, applications.studentId))
@@ -56,6 +57,7 @@ export async function GET(req: NextRequest) {
       ifsc: students.ifsc,
       status: applications.status,
       closed: applications.closed,
+      scholarship_amount: applications.scholarshipAmount,
       financial_year: applications.financialYear,
       pete_name: petes.name,
       grp: groupExpr,

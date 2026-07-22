@@ -50,19 +50,20 @@ export default function PrintStudentPage() {
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 print:hidden">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 print:hidden">
         <div>
-          <h1 className="text-xl font-bold text-red-900">
-            Application — {student.name} ({student.student_id})
+          <h1 className="page-title">
+            Application — {student.name}{" "}
+            <span className="font-mono text-lg text-maroon-700">({student.student_id})</span>
           </h1>
-          <p className="text-sm text-gray-600">Official form format, filled with the student's details.</p>
+          <p className="page-subtitle">Official form format, filled with the student's details.</p>
         </div>
         <div className="flex items-center gap-2">
           {student.applications.length > 0 && (
             <select
               value={financialYear}
               onChange={(e) => setFinancialYear(e.target.value)}
-              className="rounded border-2 border-red-300 px-3 py-2 text-sm focus:border-red-700 focus:outline-none"
+              className="input w-auto"
             >
               {student.applications.map((a) => (
                 <option key={a.id} value={a.financialYear}>
@@ -71,16 +72,10 @@ export default function PrintStudentPage() {
               ))}
             </select>
           )}
-          <Link
-            href={`/students/${id}`}
-            className="rounded border-2 border-red-800 px-4 py-2 font-semibold text-red-800 hover:bg-red-50"
-          >
+          <Link href={`/students/${id}`} className="btn-secondary">
             ← Back
           </Link>
-          <button
-            onClick={() => window.print()}
-            className="rounded bg-red-800 px-5 py-2 font-semibold text-white shadow hover:bg-red-700"
-          >
+          <button onClick={() => window.print()} className="btn-primary px-6">
             🖨️ Print
           </button>
         </div>

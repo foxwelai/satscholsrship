@@ -71,7 +71,10 @@ export default function ScholarshipForm({ student = {} }: { student?: StudentDat
         <div className="text-center">
           <p className="text-[11px] font-semibold text-red-800">|| Shri Bhadram Prasannaha ||</p>
           <div className="mt-1 flex items-start justify-between">
-            <div className="w-16 pt-1 text-3xl text-red-800">🛕</div>
+            <div className="w-16 pt-0.5">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo.png" alt="Temple logo" className="h-14 w-14 object-contain" />
+            </div>
             <div className="flex-1">
               <h1 className="text-xl font-bold text-red-800">
                 Shrimath Ananteshwar Temple, Manjeshwar (Kerala)

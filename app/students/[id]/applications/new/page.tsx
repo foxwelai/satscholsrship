@@ -42,22 +42,24 @@ export default function NewApplicationYearPage() {
 
   if (done) {
     return (
-      <div className="mx-auto max-w-lg rounded-lg border-2 border-green-600 bg-white p-8 text-center shadow">
-        <p className="text-5xl">✅</p>
-        <h1 className="mt-3 text-xl font-bold text-green-800">Application Saved</h1>
-        <p className="mt-2 text-gray-700">
-          for {student.name} ({student.student_id})
-        </p>
-        <div className="mt-6 flex justify-center gap-3">
-          <Link href={`/students/${id}`} className="rounded bg-red-800 px-5 py-2 font-semibold text-white hover:bg-red-700">
-            Back to Student
-          </Link>
-          <button
-            onClick={() => router.push(`/students`)}
-            className="rounded border-2 border-red-800 px-5 py-2 font-semibold text-red-800 hover:bg-red-50"
-          >
-            Search Students
-          </button>
+      <div className="card mx-auto max-w-lg overflow-hidden text-center">
+        <div className="h-1.5 bg-gradient-to-r from-emerald-500 via-gold-400 to-emerald-500" />
+        <div className="p-10">
+          <p className="text-6xl">✅</p>
+          <h1 className="mt-4 font-display text-2xl tracking-wide text-emerald-800">
+            Application Saved
+          </h1>
+          <p className="mt-2 text-sm text-stone-500">
+            for <span className="font-semibold text-stone-700">{student.name}</span> ({student.student_id})
+          </p>
+          <div className="mt-8 flex justify-center gap-3">
+            <Link href={`/students/${id}`} className="btn-primary">
+              Back to Student
+            </Link>
+            <button onClick={() => router.push(`/students`)} className="btn-secondary">
+              Search Students
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -70,12 +72,13 @@ export default function NewApplicationYearPage() {
 
   return (
     <div>
-      <h1 className="mb-1 text-xl font-bold text-red-900">Renew — {student.name}</h1>
-      <p className="mb-4 text-sm text-gray-600">
-        {student.student_id} · {student.pete_name} Pete. Add this year&apos;s class and details, then
-        either save as a normal application or fast-track with{" "}
-        <span className="font-semibold">Approve &amp; Close</span> for a returning, already-vetted
-        student.
+      <h1 className="page-title">Renew — {student.name}</h1>
+      <p className="page-subtitle mb-6">
+        <span className="font-mono font-semibold text-maroon-800">{student.student_id}</span> ·{" "}
+        {student.pete_name} Pete. Add this year&apos;s class and details, then either save as a
+        normal application or fast-track with{" "}
+        <span className="font-semibold text-emerald-700">Approve &amp; Close</span> for a returning,
+        already-vetted student.
       </p>
       <ApplicationForm
         mode="create"

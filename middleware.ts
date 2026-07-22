@@ -55,5 +55,9 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|uploads/).*)"],
+  // Skip Next internals, uploads, and any static asset with a file extension
+  // (logo, icons, fonts) so they load on the login page too.
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|uploads/|.*\\.(?:png|jpg|jpeg|webp|svg|gif|ico|pdf|txt|woff2?)$).*)",
+  ],
 };

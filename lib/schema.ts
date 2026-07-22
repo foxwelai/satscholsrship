@@ -66,6 +66,7 @@ export const applications = pgTable(
     currentClass: text("current_class").notNull().default(""),
     prevYearMarks: text("prev_year_marks").notNull().default(""),
     annualFee: text("annual_fee").notNull().default(""),
+    scholarshipAmount: integer("scholarship_amount").notNull().default(0),
     status: text("status").notNull().default("Applied"),
     closed: boolean("closed").notNull().default(false),
     approvedAt: timestamp("approved_at", { withTimezone: true }),
@@ -75,4 +76,19 @@ export const applications = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [unique("applications_student_year_unique").on(t.studentId, t.financialYear)]
+);
+
+// Per-category scholarship amount, editable per financial year by the super
+// admin — e.g. P.U.C. ₹1500, Degree ₹2000, in the 2026-27 cycle. Looked up to
+// suggest (not force) the award amount when an application is created.
+export const scholarshipRates = pgTable(
+  "scholarship_rates",
+  {
+    id: serial("id").primaryKey(),
+    financialYear: text("financial_year").notNull(),
+    category: text("category").notNull(),
+    amount: integer("amount").notNull().default(0),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [unique("scholarship_rates_year_category_unique").on(t.financialYear, t.category)]
 );
