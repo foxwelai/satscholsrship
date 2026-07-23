@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { uploadToCloudinary, type PhotoType } from "@/lib/cloudinary";
+import type { PhotoType } from "@/lib/cloudinary";
 
 interface PhotoUploadProps {
   label: string;
@@ -35,9 +35,9 @@ export default function PhotoUpload({
       return;
     }
 
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      setError("File size must be less than 5MB");
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      setError("File size must be less than 10MB");
       return;
     }
 
@@ -52,11 +52,25 @@ export default function PhotoUpload({
       };
       reader.readAsDataURL(file);
 
-      // Upload to Cloudinary
-      const url = await uploadToCloudinary(file, photoType, studentId);
-      onUploadComplete(url);
+      // Upload via API
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("kind", photoType);
+
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Upload failed");
+      }
+
+      const data = await response.json();
+      onUploadComplete(data.path);
     } catch (err) {
-      setError("Failed to upload image. Please try again.");
+      setError(err instanceof Error ? err.message : "Failed to upload image. Please try again.");
       setPreview(currentUrl || null);
     } finally {
       setUploading(false);
@@ -93,11 +107,11 @@ export default function PhotoUpload({
             disabled={uploading}
             className="inline-block rounded-lg border-2 border-dashed border-cream-300 px-4 py-3 text-sm font-semibold text-maroon-700 transition hover:border-maroon-400 hover:bg-maroon-50 disabled:opacity-50"
           >
-            {uploading ? "Uploading…" : preview ? "Change Photo" : "Upload Photo"}
+            {uploading ? "Uploading…" : preview ? "Change Photo" : "📷 Upload Photo"}
           </button>
 
           <p className="text-xs text-stone-500">
-            JPG or PNG, max 5MB
+            JPG, PNG or WebP, max 10MB
           </p>
 
           {error && (
