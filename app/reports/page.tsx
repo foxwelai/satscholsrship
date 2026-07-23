@@ -49,6 +49,7 @@ export default function ReportsPage() {
   const [status, setStatus] = useState("");
   const [financialYear, setFinancialYear] = useState("");
   const [bankGroup, setBankGroup] = useState("");
+  const [selectedPete, setSelectedPete] = useState("");
   const [data, setData] = useState<{ summary: SummaryRow[]; students: StudentRow[]; years: string[] }>();
   const [expanded, setExpanded] = useState<string | null>(null);
   const [pdfBusy, setPdfBusy] = useState(false);
@@ -83,9 +84,13 @@ export default function ReportsPage() {
 
   function exportCsv() {
     if (!data) return;
-    const header = "Group,Student ID,Name,Pete,Class,Category,Bank,Branch,IFSC,Status,Closed,Scholarship Amount,Financial Year";
-    const rows = data.students.map((s) =>
-      [s.grp, s.student_id, s.name, s.pete_name, s.current_class, s.category, s.bank_name, s.bank_branch, s.ifsc, s.status, s.closed ? "Yes" : "No", s.scholarship_amount, s.financial_year]
+    let students = data.students;
+    if (type === "consolidated" && selectedPete) {
+      students = students.filter((s) => s.pete_name === selectedPete);
+    }
+    const header = "Group,Student ID,Name,Pete,Class,Category,Bank,Branch,IFSC,Scholarship Amount,Financial Year";
+    const rows = students.map((s) =>
+      [s.grp, s.student_id, s.name, s.pete_name, s.current_class, s.category, s.bank_name, s.bank_branch, s.ifsc, s.scholarship_amount, s.financial_year]
         .map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`)
         .join(",")
     );
@@ -162,10 +167,14 @@ export default function ReportsPage() {
       });
 
       const afterSummaryY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
+      let studentsForPdf = data.students;
+      if (type === "consolidated" && selectedPete) {
+        studentsForPdf = studentsForPdf.filter((s) => s.pete_name === selectedPete);
+      }
       autoTable(doc, {
         startY: afterSummaryY + 8,
-        head: [["Student ID", "Name", "Pete", "Class", "Bank / Branch", "IFSC", "FY", "Amount (Rs.)", "Status"]],
-        body: data.students.map((s) => [
+        head: [["Student ID", "Name", "Pete", "Class", "Bank / Branch", "IFSC", "FY", "Amount (Rs.)"]],
+        body: studentsForPdf.map((s) => [
           s.student_id,
           s.name,
           s.pete_name,
@@ -174,7 +183,6 @@ export default function ReportsPage() {
           s.ifsc,
           s.financial_year,
           s.scholarship_amount.toLocaleString("en-IN"),
-          s.closed ? `${s.status} (Closed)` : s.status,
         ]),
         styles: { fontSize: 8, cellPadding: 1.8 },
         headStyles: { fillColor: [30, 58, 95], fontSize: 8 },
@@ -228,6 +236,24 @@ export default function ReportsPage() {
         </div>
       </div>
 
+      {type === "consolidated" && (
+        <div className="mb-3 flex flex-wrap items-center gap-3 print:hidden">
+          <span className="text-[11px] font-bold tracking-wider text-stone-400 uppercase">Pete</span>
+          <select
+            value={selectedPete}
+            onChange={(e) => setSelectedPete(e.target.value)}
+            className="input w-auto"
+          >
+            <option value="">— All Petes —</option>
+            {Array.from(new Set(data?.students.map((s) => s.pete_name) ?? [])).sort().map((pete) => (
+              <option key={pete} value={pete}>
+                {pete}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       <div className="mb-5 flex flex-wrap items-center gap-3 print:hidden">
         <span className="text-[11px] font-bold tracking-wider text-stone-400 uppercase">View</span>
         <div className="flex rounded-xl border border-cream-300 bg-white p-1 shadow-sm">
@@ -272,76 +298,76 @@ export default function ReportsPage() {
       {!data ? (
         <p className="text-stone-400">Loading…</p>
       ) : type === "consolidated" ? (
-        // Pete Students report - show all students grouped by Pete
-        data.students.length === 0 ? (
-          <div className="card p-10 text-center">
-            <p className="text-4xl">🪔</p>
-            <p className="mt-3 text-sm text-stone-500">No data for the selected filters.</p>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {Array.from(new Map(
-              data.students.map(s => [s.pete_name, s])
-            ).entries()).map(([peteName, firstStudent]) => (
-              <div key={peteName} className="card overflow-hidden">
+        // Pete Students report - filter by selected Pete and bank
+        (() => {
+          let filtered = data.students;
+          if (selectedPete) {
+            filtered = filtered.filter((s) => s.pete_name === selectedPete);
+          }
+          if (bankGroup === "ubi") {
+            filtered = filtered.filter((s) => s.bank_name === "Union Bank of India");
+          } else if (bankGroup === "other") {
+            filtered = filtered.filter((s) => s.bank_name !== "Union Bank of India");
+          }
+          return filtered.length === 0 ? (
+            <div className="card p-10 text-center">
+              <p className="text-4xl">🪔</p>
+              <p className="mt-3 text-sm text-stone-500">No data for the selected filters.</p>
+            </div>
+          ) : (
+            <div className="card overflow-hidden">
+              {selectedPete && (
                 <p className="border-b border-cream-200 bg-gradient-to-r from-maroon-100/70 to-transparent px-5 py-3 font-display text-sm font-bold tracking-wide text-maroon-800">
-                  {peteName}
+                  {selectedPete}
                 </p>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-cream-200 text-left text-[11px] font-bold tracking-wider text-stone-400 uppercase">
-                        <th className="px-5 py-2.5">Student ID</th>
-                        <th className="py-2.5 pr-4">Name</th>
-                        <th className="py-2.5 pr-4">Class</th>
-                        <th className="py-2.5 pr-4">Category</th>
-                        <th className="py-2.5 pr-4">Bank / Branch</th>
-                        <th className="py-2.5 pr-4">IFSC</th>
-                        <th className="py-2.5 pr-4">FY</th>
-                        <th className="py-2.5 pr-4">Scholarship</th>
-                        <th className="py-2.5 pr-5">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.students
-                        .filter((s) => s.pete_name === peteName)
-                        .map((s) => (
-                          <tr
-                            key={s.application_id}
-                            className="border-b border-cream-200/70 last:border-0 hover:bg-gold-100/30"
+              )}
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-cream-200 text-left text-[11px] font-bold tracking-wider text-stone-400 uppercase">
+                      <th className="px-5 py-2.5">Student ID</th>
+                      <th className="py-2.5 pr-4">Name</th>
+                      <th className="py-2.5 pr-4">Class</th>
+                      <th className="py-2.5 pr-4">Category</th>
+                      <th className="py-2.5 pr-4">Bank / Branch</th>
+                      <th className="py-2.5 pr-4">IFSC</th>
+                      <th className="py-2.5 pr-4">FY</th>
+                      <th className="py-2.5 pr-5">Scholarship</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map((s) => (
+                      <tr
+                        key={s.application_id}
+                        className="border-b border-cream-200/70 last:border-0 hover:bg-gold-100/30"
+                      >
+                        <td className="px-5 py-2">
+                          <Link
+                            href={`/students/${s.id}`}
+                            className="font-mono text-[13px] font-bold text-maroon-700 hover:underline"
                           >
-                            <td className="px-5 py-2">
-                              <Link
-                                href={`/students/${s.id}`}
-                                className="font-mono text-[13px] font-bold text-maroon-700 hover:underline"
-                              >
-                                {s.student_id}
-                              </Link>
-                            </td>
-                            <td className="py-2 pr-4 font-medium">{s.name}</td>
-                            <td className="py-2 pr-4">{s.current_class}</td>
-                            <td className="py-2 pr-4">{s.category}</td>
-                            <td className="py-2 pr-4">
-                              {[s.bank_name, s.bank_branch].filter(Boolean).join(", ")}
-                            </td>
-                            <td className="py-2 pr-4 font-mono text-xs">{s.ifsc}</td>
-                            <td className="py-2 pr-4">{s.financial_year}</td>
-                            <td className="py-2 pr-4 font-semibold text-navy-800">
-                              ₹{s.scholarship_amount.toLocaleString("en-IN")}
-                            </td>
-                            <td className="py-2 pr-5 text-xs font-semibold">
-                              {s.status}
-                              {s.closed ? " · Closed" : ""}
-                            </td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
-                </div>
+                            {s.student_id}
+                          </Link>
+                        </td>
+                        <td className="py-2 pr-4 font-medium">{s.name}</td>
+                        <td className="py-2 pr-4">{s.current_class}</td>
+                        <td className="py-2 pr-4">{s.category}</td>
+                        <td className="py-2 pr-4">
+                          {[s.bank_name, s.bank_branch].filter(Boolean).join(", ")}
+                        </td>
+                        <td className="py-2 pr-4 font-mono text-xs">{s.ifsc}</td>
+                        <td className="py-2 pr-4">{s.financial_year}</td>
+                        <td className="py-2 pr-5 font-semibold text-navy-800">
+                          ₹{s.scholarship_amount.toLocaleString("en-IN")}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            ))}
-          </div>
-        )
+            </div>
+          );
+        })()
       ) : data.summary.length === 0 ? (
         <div className="card p-10 text-center">
           <p className="text-4xl">🪔</p>
@@ -405,8 +431,7 @@ export default function ReportsPage() {
                       <th className="py-2.5 pr-4">Bank / Branch</th>
                       <th className="py-2.5 pr-4">IFSC</th>
                       <th className="py-2.5 pr-4">FY</th>
-                      <th className="py-2.5 pr-4">Scholarship</th>
-                      <th className="py-2.5 pr-5">Status</th>
+                      <th className="py-2.5 pr-5">Scholarship</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -433,12 +458,8 @@ export default function ReportsPage() {
                           </td>
                           <td className="py-2 pr-4 font-mono text-xs">{s.ifsc}</td>
                           <td className="py-2 pr-4">{s.financial_year}</td>
-                          <td className="py-2 pr-4 font-semibold text-navy-800">
-                            ₹{s.scholarship_amount}
-                          </td>
-                          <td className="py-2 pr-5 text-xs font-semibold">
-                            {s.status}
-                            {s.closed ? " · Closed" : ""}
+                          <td className="py-2 pr-5 font-semibold text-navy-800">
+                            ₹{s.scholarship_amount.toLocaleString("en-IN")}
                           </td>
                         </tr>
                       ))}
