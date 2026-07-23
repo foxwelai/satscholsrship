@@ -29,8 +29,6 @@ const EMPTY: StudentFormValues = {
   dob: "",
   aadhar: "",
   school_name: "",
-  school_address: "",
-  school_phone: "",
   father_name: "",
   address: "",
   mother_name: "",
@@ -283,8 +281,6 @@ export default function StudentForm({
           placeholder="12-digit Aadhar"
         />
         <Input label="School / College Name" value={values.school_name} onChange={set("school_name")} />
-        <Input label="School / College Address" value={values.school_address} onChange={set("school_address")} />
-        <Input label="School / College Phone No." value={values.school_phone} onChange={set("school_phone")} />
         <PhotoUpload
           label="Student Photo"
           photoType="profile"
