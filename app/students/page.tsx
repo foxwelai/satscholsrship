@@ -36,6 +36,12 @@ function StatusBadge({ status, closed }: { status: string; closed: boolean }) {
   );
 }
 
+function getNextFinancialYear(currentFY: string): string {
+  const [year] = currentFY.split("-");
+  const yearNum = parseInt(year) + 1;
+  return `${yearNum}-${String(yearNum + 1).slice(-2)}`;
+}
+
 export default function SearchStudentsPage() {
   const session = useSession();
   const [q, setQ] = useState("");
@@ -113,43 +119,55 @@ export default function SearchStudentsPage() {
               <th>Latest Class</th>
               <th>FY</th>
               <th>Status</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={8} className="py-10 text-center text-stone-400">
+                <td colSpan={9} className="py-10 text-center text-stone-400">
                   Searching…
                 </td>
               </tr>
             ) : results.length === 0 ? (
               <tr>
-                <td colSpan={8} className="py-10 text-center text-stone-400">
+                <td colSpan={9} className="py-10 text-center text-stone-400">
                   No students found.
                 </td>
               </tr>
             ) : (
-              results.map((s) => (
-                <tr key={s.id}>
-                  <td>
-                    <Link
-                      href={`/students/${s.id}`}
-                      className="font-mono text-[13px] font-bold text-maroon-700 hover:underline"
-                    >
-                      {s.student_id}
-                    </Link>
-                  </td>
-                  <td className="font-medium">{s.name}</td>
-                  <td className="font-mono text-xs text-stone-500">{s.aadhar}</td>
-                  <td>{s.mobile}</td>
-                  <td>{s.pete_name}</td>
-                  <td>{s.current_class}</td>
-                  <td>{s.financial_year}</td>
-                  <td>
-                    <StatusBadge status={s.status} closed={s.closed} />
-                  </td>
-                </tr>
-              ))
+              results.map((s) => {
+                const nextFY = getNextFinancialYear(s.financial_year);
+                return (
+                  <tr key={s.id}>
+                    <td>
+                      <Link
+                        href={`/students/${s.id}`}
+                        className="font-mono text-[13px] font-bold text-maroon-700 hover:underline"
+                      >
+                        {s.student_id}
+                      </Link>
+                    </td>
+                    <td className="font-medium">{s.name}</td>
+                    <td className="font-mono text-xs text-stone-500">{s.aadhar}</td>
+                    <td>{s.mobile}</td>
+                    <td>{s.pete_name}</td>
+                    <td>{s.current_class}</td>
+                    <td>{s.financial_year}</td>
+                    <td>
+                      <StatusBadge status={s.status} closed={s.closed} />
+                    </td>
+                    <td className="text-right print:hidden">
+                      <Link
+                        href={`/students/renew?student_id=${s.id}&next_year=${encodeURIComponent(nextFY)}`}
+                        className="text-xs font-bold text-maroon-700 hover:underline whitespace-nowrap"
+                      >
+                        Renew →
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

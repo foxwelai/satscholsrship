@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { CATEGORIES, CLASSES, currentFinancialYear, financialYearOptions } from "@/lib/constants";
 
@@ -19,15 +19,20 @@ type SearchResult = Student & {
 
 export default function RenewStudentPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const studentIdParam = searchParams.get("student_id");
+  const nextYearParam = searchParams.get("next_year");
+
   const [searchQuery, setSearchQuery] = useState("");
   const [students, setStudents] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<Student | null>(null);
-  const [year, setYear] = useState(currentFinancialYear());
+  const [year, setYear] = useState(nextYearParam || currentFinancialYear());
   const [category, setCategory] = useState("");
   const [currentClass, setCurrentClass] = useState("");
   const [yearOptions, setYearOptions] = useState<string[]>(financialYearOptions());
   const [error, setError] = useState("");
+  const [scholarshipAmount, setScholarshipAmount] = useState<number | null>(null);
 
   // Fetch available years from rates table
   useEffect(() => {
@@ -40,6 +45,20 @@ export default function RenewStudentPage() {
       })
       .catch(() => {});
   }, []);
+
+  // Pre-fetch and select student if student_id param provided
+  useEffect(() => {
+    if (studentIdParam) {
+      fetch(`/api/students?q=${encodeURIComponent(studentIdParam)}`)
+        .then((r) => r.json())
+        .then((data: SearchResult[]) => {
+          if (data.length > 0) {
+            setSelected(data[0]);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [studentIdParam]);
 
   // Search for students
   useEffect(() => {
@@ -56,6 +75,27 @@ export default function RenewStudentPage() {
         setLoading(false);
       });
   }, [searchQuery]);
+
+  // Fetch scholarship amount when year and category are selected
+  useEffect(() => {
+    if (!year || !category) {
+      setScholarshipAmount(null);
+      return;
+    }
+    fetch(`/api/rates?financial_year=${encodeURIComponent(year)}`)
+      .then((r) => r.json())
+      .then((data) => {
+        const rate = data.rates?.find((r: any) => r.category === category);
+        if (rate) {
+          setScholarshipAmount(rate.amount);
+        } else {
+          setScholarshipAmount(null);
+        }
+      })
+      .catch(() => {
+        setScholarshipAmount(null);
+      });
+  }, [year, category]);
 
   async function proceedToApplication() {
     setError("");
@@ -158,11 +198,17 @@ export default function RenewStudentPage() {
               <span className="label">
                 Financial Year <span className="text-maroon-700">*</span>
               </span>
-              <select value={year} onChange={(e) => setYear(e.target.value)} className="input">
+              <select
+                value={year}
+                onChange={(e) => setYear(e.target.value)}
+                disabled={!!nextYearParam}
+                className={`input ${nextYearParam ? "opacity-60 cursor-not-allowed" : ""}`}
+              >
                 {yearOptions.map((fy) => (
                   <option key={fy}>{fy}</option>
                 ))}
               </select>
+              {nextYearParam && <p className="mt-1 text-xs text-stone-500">Next financial year (locked)</p>}
             </label>
 
             <label className="block">
@@ -195,6 +241,13 @@ export default function RenewStudentPage() {
                 ))}
               </select>
             </label>
+
+            {scholarshipAmount !== null && (
+              <div className="rounded-lg bg-emerald-50 p-3 ring-1 ring-emerald-200">
+                <p className="text-xs text-stone-500">Scholarship Amount</p>
+                <p className="mt-1 text-lg font-bold text-emerald-700">₹{scholarshipAmount.toLocaleString("en-IN")}</p>
+              </div>
+            )}
 
             <button
               onClick={proceedToApplication}
