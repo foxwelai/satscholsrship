@@ -1,5 +1,4 @@
 export const CATEGORIES = [
-  "S.S.L.C.",
   "P.U.C.",
   "Degree",
   "Engineering",
@@ -8,7 +7,6 @@ export const CATEGORIES = [
 ] as const;
 
 export const CLASSES: Record<string, string[]> = {
-  "S.S.L.C.": ["S.S.L.C. Passed"],
   "P.U.C.": ["P.U.C. - I Year", "P.U.C. - II Year"],
   Degree: ["Degree - 1st Year", "Degree - 2nd Year", "Degree - 3rd Year"],
   Engineering: [
