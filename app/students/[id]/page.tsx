@@ -13,7 +13,6 @@ type Application = {
   currentClass: string;
   prevYearMarks: string;
   annualFee: string;
-  scholarshipAmount: number;
   status: string;
   closed: boolean;
   approvedAt: string | null;
@@ -125,7 +124,6 @@ export default function StudentDetailPage() {
                   <th className="py-2.5 pr-4">Class</th>
                   <th className="py-2.5 pr-4">Category</th>
                   <th className="py-2.5 pr-4">Fee</th>
-                  <th className="py-2.5 pr-4">Scholarship</th>
                   <th className="py-2.5 pr-4">Status</th>
                   <th className="py-2.5 pr-4">Closed</th>
                   <th className="py-2.5 pr-5"></th>
@@ -138,9 +136,6 @@ export default function StudentDetailPage() {
                     <td className="py-2.5 pr-4">{a.currentClass}</td>
                     <td className="py-2.5 pr-4">{a.category}</td>
                     <td className="py-2.5 pr-4">{a.annualFee}</td>
-                    <td className="py-2.5 pr-4 font-semibold text-navy-800">
-                      ₹{a.scholarshipAmount}
-                    </td>
                     <td className="py-2.5 pr-4">
                       <span
                         className={

@@ -1,31 +1,46 @@
 import { NextRequest, NextResponse } from "next/server";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { students, petes, applications } from "@/lib/schema";
+import { students, petes, applications, scholarshipRates } from "@/lib/schema";
 import { getSession } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
-  const type = req.nextUrl.searchParams.get("type") ?? "pete";
+  const type = req.nextUrl.searchParams.get("type") ?? "bank";
   const status = req.nextUrl.searchParams.get("status") ?? "";
   const financialYear = req.nextUrl.searchParams.get("financial_year") ?? "";
+  const bankGroup = req.nextUrl.searchParams.get("bank_group") ?? ""; // '' | 'ubi' | 'other'
 
   const conditions = [];
   if (session.role === "pete_admin") conditions.push(eq(students.peteId, session.peteId!));
   if (status) conditions.push(eq(applications.status, status));
   if (financialYear) conditions.push(eq(applications.financialYear, financialYear));
+  if (bankGroup === "ubi") {
+    conditions.push(sql`${students.bankName} ILIKE '%union bank%'`);
+  } else if (bankGroup === "other") {
+    conditions.push(sql`${students.bankName} NOT ILIKE '%union bank%'`);
+  }
   const where = conditions.length ? and(...conditions) : undefined;
 
   const groupExpr =
-    type === "bank"
-      ? sql<string>`COALESCE(NULLIF(${students.bankName}, ''), '(No bank recorded)')`
-      : type === "class"
+    type === "class"
       ? sql<string>`COALESCE(NULLIF(${applications.currentClass}, ''), '(No class recorded)')`
       : type === "category"
       ? sql<string>`COALESCE(NULLIF(${applications.category}, ''), '(No category recorded)')`
-      : petes.name;
+      : type === "consolidated"
+      ? petes.name
+      : sql<string>`COALESCE(NULLIF(${students.bankName}, ''), '(No bank recorded)')`;
+
+  // The scholarship amount is never stored on the application — it is always
+  // taken live from the rates table for the application's year + category, so
+  // the super admin can revise rates and reports update instantly.
+  const amountExpr = sql<number>`COALESCE(${scholarshipRates.amount}, 0)`;
+  const ratesJoin = and(
+    eq(scholarshipRates.financialYear, applications.financialYear),
+    eq(scholarshipRates.category, applications.category)
+  )!;
 
   const summary = await db
     .select({
@@ -35,11 +50,12 @@ export async function GET(req: NextRequest) {
       applied: sql<number>`sum(case when ${applications.status} = 'Applied' then 1 else 0 end)::int`,
       rejected: sql<number>`sum(case when ${applications.status} = 'Rejected' then 1 else 0 end)::int`,
       closed: sql<number>`sum(case when ${applications.closed} then 1 else 0 end)::int`,
-      total_amount: sql<number>`sum(${applications.scholarshipAmount})::int`,
+      total_amount: sql<number>`sum(${amountExpr})::int`,
     })
     .from(applications)
     .innerJoin(students, eq(students.id, applications.studentId))
     .innerJoin(petes, eq(petes.id, students.peteId))
+    .leftJoin(scholarshipRates, ratesJoin)
     .where(where)
     .groupBy(groupExpr)
     .orderBy(sql`count(*) desc`, groupExpr);
@@ -57,7 +73,7 @@ export async function GET(req: NextRequest) {
       ifsc: students.ifsc,
       status: applications.status,
       closed: applications.closed,
-      scholarship_amount: applications.scholarshipAmount,
+      scholarship_amount: sql<number>`${amountExpr}::int`,
       financial_year: applications.financialYear,
       pete_name: petes.name,
       grp: groupExpr,
@@ -65,6 +81,7 @@ export async function GET(req: NextRequest) {
     .from(applications)
     .innerJoin(students, eq(students.id, applications.studentId))
     .innerJoin(petes, eq(petes.id, students.peteId))
+    .leftJoin(scholarshipRates, ratesJoin)
     .where(where)
     .orderBy(groupExpr, students.name);
 

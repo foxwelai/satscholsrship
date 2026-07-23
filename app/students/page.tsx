@@ -36,6 +36,12 @@ function StatusBadge({ status, closed }: { status: string; closed: boolean }) {
   );
 }
 
+function getNextFinancialYear(currentFY: string): string {
+  const [year] = currentFY.split("-");
+  const yearNum = parseInt(year) + 1;
+  return `${yearNum}-${String(yearNum + 1).slice(-2)}`;
+}
+
 export default function SearchStudentsPage() {
   const session = useSession();
   const [q, setQ] = useState("");
@@ -43,9 +49,29 @@ export default function SearchStudentsPage() {
   const [petes, setPetes] = useState<Pete[]>([]);
   const [results, setResults] = useState<StudentRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [currentYear, setCurrentYear] = useState("");
+  const [selectedYear, setSelectedYear] = useState("");
+  const [availableYears, setAvailableYears] = useState<string[]>([]);
 
   useEffect(() => {
     fetch("/api/petes").then((r) => r.json()).then(setPetes);
+    fetch("/api/settings?key=current_academic_year")
+      .then((r) => r.json())
+      .then((data) => {
+        setCurrentYear(data.value);
+        setSelectedYear(data.value);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Fetch available years from reports API
+  useEffect(() => {
+    fetch("/api/reports?type=bank")
+      .then((r) => r.json())
+      .then((data) => {
+        setAvailableYears(data.years || []);
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -54,6 +80,7 @@ export default function SearchStudentsPage() {
       const params = new URLSearchParams();
       if (q.trim()) params.set("q", q.trim());
       if (peteId) params.set("pete_id", peteId);
+      if (selectedYear) params.set("financial_year", selectedYear);
       fetch(`/api/students?${params}`)
         .then((r) => r.json())
         .then((data) => {
@@ -62,10 +89,15 @@ export default function SearchStudentsPage() {
         });
     }, 300);
     return () => clearTimeout(t);
-  }, [q, peteId]);
+  }, [q, peteId, selectedYear]);
 
   return (
     <div>
+      <div className="mb-4 flex items-center gap-3 rounded-lg bg-blue-50 px-4 py-3 ring-1 ring-blue-200">
+        <span className="text-sm font-semibold text-blue-900">Current Academic Year:</span>
+        <span className="text-lg font-bold text-blue-700">{currentYear || "—"}</span>
+      </div>
+
       <h1 className="page-title">Search Students</h1>
       <p className="page-subtitle">
         Search by Aadhar number, Student ID (e.g. MJS/26/0001) or name. Open a student to renew them
@@ -85,6 +117,18 @@ export default function SearchStudentsPage() {
             className="input py-3 pl-11"
           />
         </div>
+        <select
+          value={selectedYear}
+          onChange={(e) => setSelectedYear(e.target.value)}
+          className="input w-auto py-3"
+        >
+          <option value="">All Years</option>
+          {availableYears.map((year) => (
+            <option key={year} value={year}>
+              {year}
+            </option>
+          ))}
+        </select>
         {session?.role === "super_admin" && (
           <select
             value={peteId}
@@ -113,43 +157,55 @@ export default function SearchStudentsPage() {
               <th>Latest Class</th>
               <th>FY</th>
               <th>Status</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={8} className="py-10 text-center text-stone-400">
+                <td colSpan={9} className="py-10 text-center text-stone-400">
                   Searching…
                 </td>
               </tr>
             ) : results.length === 0 ? (
               <tr>
-                <td colSpan={8} className="py-10 text-center text-stone-400">
+                <td colSpan={9} className="py-10 text-center text-stone-400">
                   No students found.
                 </td>
               </tr>
             ) : (
-              results.map((s) => (
-                <tr key={s.id}>
-                  <td>
-                    <Link
-                      href={`/students/${s.id}`}
-                      className="font-mono text-[13px] font-bold text-maroon-700 hover:underline"
-                    >
-                      {s.student_id}
-                    </Link>
-                  </td>
-                  <td className="font-medium">{s.name}</td>
-                  <td className="font-mono text-xs text-stone-500">{s.aadhar}</td>
-                  <td>{s.mobile}</td>
-                  <td>{s.pete_name}</td>
-                  <td>{s.current_class}</td>
-                  <td>{s.financial_year}</td>
-                  <td>
-                    <StatusBadge status={s.status} closed={s.closed} />
-                  </td>
-                </tr>
-              ))
+              results.map((s) => {
+                const nextFY = getNextFinancialYear(s.financial_year);
+                return (
+                  <tr key={s.id}>
+                    <td>
+                      <Link
+                        href={`/students/${s.id}`}
+                        className="font-mono text-[13px] font-bold text-maroon-700 hover:underline"
+                      >
+                        {s.student_id}
+                      </Link>
+                    </td>
+                    <td className="font-medium">{s.name}</td>
+                    <td className="font-mono text-xs text-stone-500">{s.aadhar}</td>
+                    <td>{s.mobile}</td>
+                    <td>{s.pete_name}</td>
+                    <td>{s.current_class}</td>
+                    <td>{s.financial_year}</td>
+                    <td>
+                      <StatusBadge status={s.status} closed={s.closed} />
+                    </td>
+                    <td className="text-right print:hidden">
+                      <Link
+                        href={`/students/renew?student_id=${s.id}&next_year=${encodeURIComponent(nextFY)}`}
+                        className="text-xs font-bold text-maroon-700 hover:underline whitespace-nowrap"
+                      >
+                        Renew →
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

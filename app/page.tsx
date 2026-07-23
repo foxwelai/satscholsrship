@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { students, petes, applications } from "@/lib/schema";
+import { students, petes, applications, scholarshipRates } from "@/lib/schema";
 import { getSession } from "@/lib/auth";
 import { currentFinancialYear } from "@/lib/constants";
 
@@ -40,10 +40,17 @@ export default async function Dashboard() {
       applied: sql<number>`count(*)::int`,
       approved: sql<number>`sum(case when ${applications.status} = 'Approved' then 1 else 0 end)::int`,
       closed: sql<number>`sum(case when ${applications.closed} then 1 else 0 end)::int`,
-      amount: sql<number>`coalesce(sum(case when ${applications.status} = 'Approved' then ${applications.scholarshipAmount} else 0 end), 0)::int`,
+      amount: sql<number>`coalesce(sum(case when ${applications.status} = 'Approved' then coalesce(${scholarshipRates.amount}, 0) else 0 end), 0)::int`,
     })
     .from(applications)
     .innerJoin(students, eq(students.id, applications.studentId))
+    .leftJoin(
+      scholarshipRates,
+      and(
+        eq(scholarshipRates.financialYear, applications.financialYear),
+        eq(scholarshipRates.category, applications.category)
+      )
+    )
     .where(and(eq(applications.financialYear, fy), peteScope));
 
   const recent = await db

@@ -92,3 +92,14 @@ export const scholarshipRates = pgTable(
   },
   (t) => [unique("scholarship_rates_year_category_unique").on(t.financialYear, t.category)]
 );
+
+// Settings table for global app configuration (e.g. current academic year)
+export const settings = pgTable(
+  "settings",
+  {
+    id: serial("id").primaryKey(),
+    key: text("key").notNull().unique(),
+    value: text("value").notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  }
+);

@@ -12,7 +12,6 @@ type AppFields = {
   current_class: string;
   prev_year_marks: string;
   annual_fee: string;
-  scholarship_amount: string;
 };
 
 export default function NewStudentPage() {
@@ -24,25 +23,20 @@ export default function NewStudentPage() {
     current_class: "",
     prev_year_marks: "",
     annual_fee: "",
-    scholarship_amount: "",
   });
-  const [rateHint, setRateHint] = useState<number | null>(null);
+  const [yearOptions, setYearOptions] = useState<string[]>(financialYearOptions());
 
+  // Merge financial years configured in Scholarship Rates into the dropdown.
   useEffect(() => {
-    if (!appFields.category) {
-      setRateHint(null);
-      return;
-    }
-    fetch(`/api/rates?financial_year=${encodeURIComponent(appFields.financial_year)}`)
+    fetch("/api/rates")
       .then((r) => r.json())
-      .then((data: { rates: { category: string; amount: number }[] }) => {
-        const rate = data.rates?.find((r) => r.category === appFields.category);
-        setRateHint(rate ? rate.amount : null);
-        if (rate) setAppFields((prev) => ({ ...prev, scholarship_amount: String(rate.amount) }));
+      .then((data: { years?: string[] }) => {
+        setYearOptions((prev) =>
+          Array.from(new Set([...prev, ...(data.years ?? [])])).sort((a, b) => (a < b ? 1 : -1))
+        );
       })
-      .catch(() => setRateHint(null));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appFields.category, appFields.financial_year]);
+      .catch(() => {});
+  }, []);
 
   async function handleSubmit(values: StudentFormValues): Promise<string | null> {
     if (!appFields.category || !appFields.current_class) {
@@ -116,7 +110,7 @@ export default function NewStudentPage() {
                 onChange={(e) => setAppFields({ ...appFields, financial_year: e.target.value })}
                 className="input"
               >
-                {financialYearOptions().map((fy) => (
+                {yearOptions.map((fy) => (
                   <option key={fy}>{fy}</option>
                 ))}
               </select>
@@ -170,23 +164,6 @@ export default function NewStudentPage() {
                 className="input"
               />
             </label>
-            <div>
-              <label className="block">
-                <span className="label">Scholarship Amount (₹)</span>
-                <input
-                  type="number"
-                  min={0}
-                  value={appFields.scholarship_amount}
-                  onChange={(e) => setAppFields({ ...appFields, scholarship_amount: e.target.value })}
-                  className="input"
-                />
-              </label>
-              {rateHint !== null && (
-                <p className="mt-1 text-xs text-gray-500">
-                  Configured rate for {appFields.category} in {appFields.financial_year}: ₹{rateHint}
-                </p>
-              )}
-            </div>
           </div>
         </section>
       </StudentForm>

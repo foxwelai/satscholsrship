@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import PhotoUpload from "./PhotoUpload";
 
 export type Pete = {
   id: number;
@@ -284,11 +285,12 @@ export default function StudentForm({
         <Input label="School / College Name" value={values.school_name} onChange={set("school_name")} />
         <Input label="School / College Address" value={values.school_address} onChange={set("school_address")} />
         <Input label="School / College Phone No." value={values.school_phone} onChange={set("school_phone")} />
-        <FileUpload
+        <PhotoUpload
           label="Student Photo"
-          kind="photo"
-          path={values.photo_path}
-          onUploaded={set("photo_path")}
+          photoType="profile"
+          studentId={values.aadhar || ""}
+          currentUrl={values.photo_path}
+          onUploadComplete={set("photo_path")}
         />
       </Section>
 
@@ -332,11 +334,12 @@ export default function StudentForm({
         </div>
         <Input label="Bank Name (Only Nationalized Bank)" value={values.bank_name} onChange={set("bank_name")} />
         <Input label="Branch" value={values.bank_branch} onChange={set("bank_branch")} />
-        <FileUpload
+        <PhotoUpload
           label="Bank Pass Book (photo / scan)"
-          kind="passbook"
-          path={values.passbook_path}
-          onUploaded={set("passbook_path")}
+          photoType="passbook"
+          studentId={values.aadhar || ""}
+          currentUrl={values.passbook_path}
+          onUploadComplete={set("passbook_path")}
         />
       </Section>
 

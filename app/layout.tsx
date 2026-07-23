@@ -33,6 +33,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         { href: "/", label: "Dashboard", icon: "🏠" },
         { href: "/students/new", label: "New Application", icon: "📝" },
         { href: "/students", label: "Search Students", icon: "🔍" },
+        { href: "/students/renew", label: "Renew Student", icon: "🔄" },
         ...(session.role === "super_admin" ? [{ href: "/petes", label: "Petes", icon: "🛕" }] : []),
         { href: "/reports", label: "Reports", icon: "📊" },
         { href: "/form", label: "Blank Form", icon: "🖨️" },
@@ -40,6 +41,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           ? [
               { href: "/admin/users", label: "User Access", icon: "🔐" },
               { href: "/admin/rates", label: "Scholarship Rates", icon: "💰" },
+              { href: "/admin/settings", label: "Settings", icon: "⚙️" },
             ]
           : []),
       ]
