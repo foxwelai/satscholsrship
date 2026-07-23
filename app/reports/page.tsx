@@ -32,7 +32,7 @@ type StudentRow = {
 };
 
 const REPORT_TYPES = [
-  { key: "consolidated", label: "Consolidated" },
+  { key: "consolidated", label: "Pete Students" },
   { key: "bank", label: "By Bank" },
   { key: "class", label: "By Class" },
   { key: "category", label: "By Category" },
@@ -271,6 +271,77 @@ export default function ReportsPage() {
 
       {!data ? (
         <p className="text-stone-400">Loading…</p>
+      ) : type === "consolidated" ? (
+        // Pete Students report - show all students grouped by Pete
+        data.students.length === 0 ? (
+          <div className="card p-10 text-center">
+            <p className="text-4xl">🪔</p>
+            <p className="mt-3 text-sm text-stone-500">No data for the selected filters.</p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {Array.from(new Map(
+              data.students.map(s => [s.pete_name, s])
+            ).entries()).map(([peteName, firstStudent]) => (
+              <div key={peteName} className="card overflow-hidden">
+                <p className="border-b border-cream-200 bg-gradient-to-r from-maroon-100/70 to-transparent px-5 py-3 font-display text-sm font-bold tracking-wide text-maroon-800">
+                  {peteName}
+                </p>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-cream-200 text-left text-[11px] font-bold tracking-wider text-stone-400 uppercase">
+                        <th className="px-5 py-2.5">Student ID</th>
+                        <th className="py-2.5 pr-4">Name</th>
+                        <th className="py-2.5 pr-4">Class</th>
+                        <th className="py-2.5 pr-4">Category</th>
+                        <th className="py-2.5 pr-4">Bank / Branch</th>
+                        <th className="py-2.5 pr-4">IFSC</th>
+                        <th className="py-2.5 pr-4">FY</th>
+                        <th className="py-2.5 pr-4">Scholarship</th>
+                        <th className="py-2.5 pr-5">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.students
+                        .filter((s) => s.pete_name === peteName)
+                        .map((s) => (
+                          <tr
+                            key={s.application_id}
+                            className="border-b border-cream-200/70 last:border-0 hover:bg-gold-100/30"
+                          >
+                            <td className="px-5 py-2">
+                              <Link
+                                href={`/students/${s.id}`}
+                                className="font-mono text-[13px] font-bold text-maroon-700 hover:underline"
+                              >
+                                {s.student_id}
+                              </Link>
+                            </td>
+                            <td className="py-2 pr-4 font-medium">{s.name}</td>
+                            <td className="py-2 pr-4">{s.current_class}</td>
+                            <td className="py-2 pr-4">{s.category}</td>
+                            <td className="py-2 pr-4">
+                              {[s.bank_name, s.bank_branch].filter(Boolean).join(", ")}
+                            </td>
+                            <td className="py-2 pr-4 font-mono text-xs">{s.ifsc}</td>
+                            <td className="py-2 pr-4">{s.financial_year}</td>
+                            <td className="py-2 pr-4 font-semibold text-navy-800">
+                              ₹{s.scholarship_amount.toLocaleString("en-IN")}
+                            </td>
+                            <td className="py-2 pr-5 text-xs font-semibold">
+                              {s.status}
+                              {s.closed ? " · Closed" : ""}
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))}
+          </div>
+        )
       ) : data.summary.length === 0 ? (
         <div className="card p-10 text-center">
           <p className="text-4xl">🪔</p>
