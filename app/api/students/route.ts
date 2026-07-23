@@ -7,7 +7,7 @@ import { currentFinancialYear, financialYearStart } from "@/lib/constants";
 
 const PROFILE_FIELDS = [
   "name", "mobile", "dob", "aadhar",
-  "school_name", "school_address", "school_phone",
+  "school_name",
   "father_name", "address", "mother_name", "mother_occupation", "family_income", "contact_phone",
   "bank_account", "bank_name", "bank_branch", "ifsc",
   "photo_path", "passbook_path",
@@ -15,7 +15,7 @@ const PROFILE_FIELDS = [
 
 const fieldMap: Record<string, keyof typeof students.$inferInsert> = {
   name: "name", mobile: "mobile", dob: "dob", aadhar: "aadhar",
-  school_name: "schoolName", school_address: "schoolAddress", school_phone: "schoolPhone",
+  school_name: "schoolName",
   father_name: "fatherName", address: "address", mother_name: "motherName",
   mother_occupation: "motherOccupation", family_income: "familyIncome", contact_phone: "contactPhone",
   bank_account: "bankAccount", bank_name: "bankName", bank_branch: "bankBranch", ifsc: "ifsc",
