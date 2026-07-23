@@ -27,7 +27,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (body.current_class !== undefined) updates.currentClass = body.current_class;
   if (body.prev_year_marks !== undefined) updates.prevYearMarks = body.prev_year_marks;
   if (body.annual_fee !== undefined) updates.annualFee = body.annual_fee;
-  if (body.scholarship_amount !== undefined) updates.scholarshipAmount = Number(body.scholarship_amount) || 0;
 
   if (body.action === "approve_close") {
     updates.status = "Approved";

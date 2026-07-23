@@ -41,6 +41,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           ? [
               { href: "/admin/users", label: "User Access", icon: "🔐" },
               { href: "/admin/rates", label: "Scholarship Rates", icon: "💰" },
+              { href: "/admin/settings", label: "Settings", icon: "⚙️" },
             ]
           : []),
       ]

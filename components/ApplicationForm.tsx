@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { CATEGORIES, CLASSES, APPLICATION_STATUSES, financialYearOptions } from "@/lib/constants";
 
 export type ApplicationValues = {
@@ -9,7 +9,6 @@ export type ApplicationValues = {
   current_class: string;
   prev_year_marks: string;
   annual_fee: string;
-  scholarship_amount: string;
   status?: string;
 };
 
@@ -30,43 +29,27 @@ export default function ApplicationForm({
     current_class: initial?.current_class ?? "",
     prev_year_marks: initial?.prev_year_marks ?? "",
     annual_fee: initial?.annual_fee ?? "",
-    scholarship_amount: initial?.scholarship_amount ?? "",
     status: initial?.status ?? "Applied",
   });
   const [error, setError] = useState("");
   const [saving, setSaving] = useState<"save" | "approve_close" | null>(null);
-  const [rateHint, setRateHint] = useState<number | null>(null);
+  const [yearOptions, setYearOptions] = useState<string[]>(financialYearOptions());
+
+  // Merge financial years configured by the super admin (in Scholarship
+  // Rates) into the default window so renewals can target them.
+  useEffect(() => {
+    fetch("/api/rates")
+      .then((r) => r.json())
+      .then((data: { years?: string[] }) => {
+        setYearOptions((prev) =>
+          Array.from(new Set([...prev, ...(data.years ?? [])])).sort((a, b) => (a < b ? 1 : -1))
+        );
+      })
+      .catch(() => {});
+  }, []);
 
   const set = (field: keyof ApplicationValues) => (v: string) =>
     setValues((prev) => ({ ...prev, [field]: v }));
-
-  // Look up the configured rate for the selected category/year, purely for display.
-  useEffect(() => {
-    if (!values.category) {
-      setRateHint(null);
-      return;
-    }
-    fetch(`/api/rates?financial_year=${encodeURIComponent(values.financial_year)}`)
-      .then((r) => r.json())
-      .then((data: { rates: { category: string; amount: number }[] }) => {
-        const rate = data.rates?.find((r) => r.category === values.category);
-        setRateHint(rate ? rate.amount : null);
-      })
-      .catch(() => setRateHint(null));
-  }, [values.category, values.financial_year]);
-
-  // Auto-suggest the amount when the rate hint changes — but not on first
-  // mount, so editing an existing application doesn't silently overwrite an
-  // already-awarded amount if rates were updated afterwards.
-  const isFirstRateCheck = useRef(true);
-  useEffect(() => {
-    if (isFirstRateCheck.current) {
-      isFirstRateCheck.current = false;
-      return;
-    }
-    if (rateHint !== null) set("scholarship_amount")(String(rateHint));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rateHint]);
 
   async function submit(action: "save" | "approve_close") {
     setError("");
@@ -77,6 +60,9 @@ export default function ApplicationForm({
   }
 
   const classOptions = values.category ? CLASSES[values.category] ?? [] : [];
+  const allYearOptions = Array.from(new Set([values.financial_year, ...yearOptions])).sort(
+    (a, b) => (a < b ? 1 : -1)
+  );
 
   return (
     <div className="card overflow-hidden">
@@ -98,7 +84,7 @@ export default function ApplicationForm({
             onChange={(e) => set("financial_year")(e.target.value)}
             className="input"
           >
-            {financialYearOptions().map((fy) => (
+            {allYearOptions.map((fy) => (
               <option key={fy}>{fy}</option>
             ))}
           </select>
@@ -171,24 +157,6 @@ export default function ApplicationForm({
             className="input"
           />
         </label>
-
-        <div>
-          <label className="block">
-            <span className="label">Scholarship Amount (₹)</span>
-            <input
-              type="number"
-              min={0}
-              value={values.scholarship_amount}
-              onChange={(e) => set("scholarship_amount")(e.target.value)}
-              className="input"
-            />
-          </label>
-          {rateHint !== null && (
-            <p className="mt-1 text-xs text-gray-500">
-              Configured rate for {values.category} in {values.financial_year}: ₹{rateHint}
-            </p>
-          )}
-        </div>
       </div>
 
       <div className="flex flex-wrap gap-3 pt-1">

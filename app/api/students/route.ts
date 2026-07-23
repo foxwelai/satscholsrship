@@ -28,6 +28,7 @@ export async function GET(req: NextRequest) {
 
   const q = req.nextUrl.searchParams.get("q")?.trim() ?? "";
   const peteIdParam = req.nextUrl.searchParams.get("pete_id");
+  const financialYear = req.nextUrl.searchParams.get("financial_year");
 
   const conditions = [];
   if (session.role === "pete_admin") {
@@ -63,8 +64,12 @@ export async function GET(req: NextRequest) {
     .limit(200);
 
   const ids = rows.map((r) => r.id);
+  const appConditions = ids.length ? [inArray(applications.studentId, ids)] : [];
+  if (financialYear) {
+    appConditions.push(eq(applications.financialYear, financialYear));
+  }
   const apps = ids.length
-    ? await db.select().from(applications).where(inArray(applications.studentId, ids))
+    ? await db.select().from(applications).where(appConditions.length ? and(...appConditions) : undefined)
     : [];
   const latestByStudent = new Map<number, (typeof apps)[number]>();
   for (const a of apps) {
@@ -81,7 +86,6 @@ export async function GET(req: NextRequest) {
       status: latest?.status ?? "—",
       closed: latest?.closed ?? false,
       financial_year: latest?.financialYear ?? "",
-      scholarship_amount: latest?.scholarshipAmount ?? 0,
     };
   });
 
@@ -145,7 +149,6 @@ export async function POST(req: NextRequest) {
         currentClass: body.current_class ?? "",
         prevYearMarks: body.prev_year_marks ?? "",
         annualFee: body.annual_fee ?? "",
-        scholarshipAmount: Number(body.scholarship_amount) || 0,
         status: "Applied",
         createdBy: session.userId,
       });

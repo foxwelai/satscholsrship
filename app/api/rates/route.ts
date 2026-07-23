@@ -25,5 +25,10 @@ export async function GET(req: NextRequest) {
     amount: byCategory.get(category) ?? 0,
   }));
 
-  return NextResponse.json({ financial_year: financialYear, rates });
+  const yearRows = await db
+    .selectDistinct({ financialYear: scholarshipRates.financialYear })
+    .from(scholarshipRates);
+  const years = yearRows.map((y) => y.financialYear).sort((a, b) => (a < b ? 1 : -1));
+
+  return NextResponse.json({ financial_year: financialYear, rates, years });
 }

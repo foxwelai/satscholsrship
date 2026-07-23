@@ -17,7 +17,6 @@ type StudentDetail = {
     currentClass: string;
     prevYearMarks: string;
     annualFee: string;
-    scholarshipAmount: number;
     status: string;
     closed: boolean;
   }[];
@@ -106,7 +105,6 @@ export default function EditApplicationPage() {
           current_class: app.currentClass,
           prev_year_marks: app.prevYearMarks,
           annual_fee: app.annualFee,
-          scholarship_amount: String(app.scholarshipAmount),
           status: app.status,
         }}
         onSave={handleSave}

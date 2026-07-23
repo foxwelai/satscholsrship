@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { scholarshipRates } from "@/lib/schema";
 import { getSession } from "@/lib/auth";
@@ -41,5 +42,19 @@ export async function POST(req: NextRequest) {
       set: { amount, updatedAt: new Date() },
     });
 
+  return NextResponse.json({ ok: true });
+}
+
+// Remove every category rate for one financial year.
+export async function DELETE(req: NextRequest) {
+  const session = await getSession();
+  if (session?.role !== "super_admin") {
+    return NextResponse.json({ error: "Super admin access required" }, { status: 403 });
+  }
+  const financialYear = req.nextUrl.searchParams.get("financial_year")?.trim();
+  if (!financialYear) {
+    return NextResponse.json({ error: "financial_year is required" }, { status: 400 });
+  }
+  await db.delete(scholarshipRates).where(eq(scholarshipRates.financialYear, financialYear));
   return NextResponse.json({ ok: true });
 }

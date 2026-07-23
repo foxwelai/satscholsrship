@@ -49,9 +49,29 @@ export default function SearchStudentsPage() {
   const [petes, setPetes] = useState<Pete[]>([]);
   const [results, setResults] = useState<StudentRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [currentYear, setCurrentYear] = useState("");
+  const [selectedYear, setSelectedYear] = useState("");
+  const [availableYears, setAvailableYears] = useState<string[]>([]);
 
   useEffect(() => {
     fetch("/api/petes").then((r) => r.json()).then(setPetes);
+    fetch("/api/settings?key=current_academic_year")
+      .then((r) => r.json())
+      .then((data) => {
+        setCurrentYear(data.value);
+        setSelectedYear(data.value);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Fetch available years from reports API
+  useEffect(() => {
+    fetch("/api/reports?type=bank")
+      .then((r) => r.json())
+      .then((data) => {
+        setAvailableYears(data.years || []);
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -60,6 +80,7 @@ export default function SearchStudentsPage() {
       const params = new URLSearchParams();
       if (q.trim()) params.set("q", q.trim());
       if (peteId) params.set("pete_id", peteId);
+      if (selectedYear) params.set("financial_year", selectedYear);
       fetch(`/api/students?${params}`)
         .then((r) => r.json())
         .then((data) => {
@@ -68,10 +89,15 @@ export default function SearchStudentsPage() {
         });
     }, 300);
     return () => clearTimeout(t);
-  }, [q, peteId]);
+  }, [q, peteId, selectedYear]);
 
   return (
     <div>
+      <div className="mb-4 flex items-center gap-3 rounded-lg bg-blue-50 px-4 py-3 ring-1 ring-blue-200">
+        <span className="text-sm font-semibold text-blue-900">Current Academic Year:</span>
+        <span className="text-lg font-bold text-blue-700">{currentYear || "—"}</span>
+      </div>
+
       <h1 className="page-title">Search Students</h1>
       <p className="page-subtitle">
         Search by Aadhar number, Student ID (e.g. MJS/26/0001) or name. Open a student to renew them
@@ -91,6 +117,18 @@ export default function SearchStudentsPage() {
             className="input py-3 pl-11"
           />
         </div>
+        <select
+          value={selectedYear}
+          onChange={(e) => setSelectedYear(e.target.value)}
+          className="input w-auto py-3"
+        >
+          <option value="">All Years</option>
+          {availableYears.map((year) => (
+            <option key={year} value={year}>
+              {year}
+            </option>
+          ))}
+        </select>
         {session?.role === "super_admin" && (
           <select
             value={peteId}
