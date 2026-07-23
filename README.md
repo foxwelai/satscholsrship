@@ -1,5 +1,6 @@
 # SAT Scholarship Portal
 
+
 Student scholarship management platform for **Shrimath Ananteshwar Temple, Manjeshwar (Kerala)** — for scholarships given to G.S.B. community students through the temple's 18 petes.
 
 ## Setup
