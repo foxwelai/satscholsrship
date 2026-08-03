@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import {
   CATEGORIES,
   CLASSES,
-  COURSE_OPTIONS,
+  COURSE_OPTIONS_BY_CATEGORY,
   APPLICATION_STATUSES,
 } from "@/lib/constants";
 import { useSession } from "@/lib/useSession";
@@ -81,11 +81,8 @@ export default function ApplicationForm({
 
   async function submit(action: "save" | "approve_close") {
     setError("");
-    if (
-      (values.category === "Engineering" || values.category === "Degree") &&
-      !values.course_name.trim()
-    ) {
-      setError("Please select the course name for Engineering / Degree.");
+    if (needsCourse && !values.course_name.trim()) {
+      setError("Please select the course name.");
       return;
     }
     if (values.status === "Rejected" && !values.rejection_reason?.trim() && mode === "edit") {
@@ -100,7 +97,8 @@ export default function ApplicationForm({
 
   const isSuperAdmin = session?.role === "super_admin";
   const classOptions = values.category ? CLASSES[values.category] ?? [] : [];
-  const needsCourse = values.category === "Engineering" || values.category === "Degree";
+  const courseOptions = values.category ? COURSE_OPTIONS_BY_CATEGORY[values.category] ?? [] : [];
+  const needsCourse = courseOptions.length > 0;
   const allYearOptions = Array.from(new Set([values.financial_year, ...yearOptions].filter(Boolean))).sort(
     (a, b) => (a < b ? 1 : -1)
   );
@@ -213,7 +211,7 @@ export default function ApplicationForm({
                 className="input"
               >
                 <option value="">— Select Course —</option>
-                {COURSE_OPTIONS.map((c) => (
+                {courseOptions.map((c) => (
                   <option key={c}>{c}</option>
                 ))}
               </select>

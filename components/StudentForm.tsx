@@ -228,6 +228,16 @@ export default function StudentForm({
 
   const set = (field: string) => (v: string) => setValues((prev) => ({ ...prev, [field]: v }));
 
+  async function lookupPincode(pin: string) {
+    try {
+      const res = await fetch(`/api/pincode?pin=${pin}`);
+      const data = await res.json();
+      if (data.location) setValues((prev) => ({ ...prev, location: data.location }));
+    } catch {
+      // pincode lookup is optional — form still submits without it
+    }
+  }
+
   async function lookupIfsc(code: string) {
     setIfscStatus("Looking up branch…");
     const res = await fetch(`/api/ifsc/${code}`);
@@ -345,6 +355,26 @@ export default function StudentForm({
           required
           placeholder="e.g. Bolandugutturoad, Hosabettu, Manjeshwar"
         />
+        <div>
+          <label className="block">
+            <span className="label">Pincode</span>
+            <input
+              type="text"
+              value={values.pincode}
+              onChange={(e) => {
+                const pin = e.target.value.replace(/\D/g, "").slice(0, 6);
+                set("pincode")(pin);
+                if (pin.length === 6) lookupPincode(pin);
+              }}
+              placeholder="6-digit pincode — auto-fills location"
+              maxLength={6}
+              className="input"
+            />
+          </label>
+          {values.location && (
+            <p className="mt-1.5 text-xs font-semibold text-emerald-700">✓ {values.location}</p>
+          )}
+        </div>
         <Input label="Mother's Name" value={values.mother_name} onChange={set("mother_name")} />
         <Input label="Family Annual Income (₹)" value={values.family_income} onChange={set("family_income")} />
         <Input label="Contact Phone / Mobile No." value={values.contact_phone} onChange={set("contact_phone")} />

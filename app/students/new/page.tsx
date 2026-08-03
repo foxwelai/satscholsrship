@@ -4,15 +4,13 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import StudentForm, { StudentFormValues } from "@/components/StudentForm";
 import { useSession } from "@/lib/useSession";
-import { CATEGORIES, CLASSES, COURSE_OPTIONS, currentFinancialYear } from "@/lib/constants";
+import { CATEGORIES, CLASSES, COURSE_OPTIONS_BY_CATEGORY, currentFinancialYear } from "@/lib/constants";
 
 type AppFields = {
   financial_year: string;
   category: string;
   current_class: string;
   course_name: string;
-  pincode: string;
-  location: string;
   prev_year_marks: string;
   annual_fee: string;
 };
@@ -25,8 +23,6 @@ export default function NewStudentPage() {
     category: "",
     current_class: "",
     course_name: "",
-    pincode: "",
-    location: "",
     prev_year_marks: "",
     annual_fee: "",
   });
@@ -42,18 +38,6 @@ export default function NewStudentPage() {
       })
       .catch(() => {});
   }, []);
-
-  async function fetchLocation(pincode: string) {
-    try {
-      const res = await fetch(`/api/pincode?pin=${pincode}`);
-      const data = await res.json();
-      if (data.location) {
-        setAppFields((prev) => ({ ...prev, location: data.location }));
-      }
-    } catch {
-      // Silently fail, let user enter manually
-    }
-  }
 
   async function handleSubmit(values: StudentFormValues): Promise<string | null> {
     if (!appFields.category || !appFields.current_class) {
@@ -72,6 +56,8 @@ export default function NewStudentPage() {
   }
 
   const classOptions = appFields.category ? CLASSES[appFields.category] ?? [] : [];
+  const courseOptions = appFields.category ? COURSE_OPTIONS_BY_CATEGORY[appFields.category] ?? [] : [];
+  const needsCourse = courseOptions.length > 0;
 
   if (created) {
     return (
@@ -133,7 +119,7 @@ export default function NewStudentPage() {
               <select
                 required
                 value={appFields.category}
-                onChange={(e) => setAppFields({ ...appFields, category: e.target.value, current_class: "" })}
+                onChange={(e) => setAppFields({ ...appFields, category: e.target.value, current_class: "", course_name: "" })}
                 className="input"
               >
                 <option value="">— Select Category —</option>
@@ -158,7 +144,7 @@ export default function NewStudentPage() {
                 ))}
               </select>
             </label>
-            {(appFields.category === "Engineering" || appFields.category === "Degree") && (
+            {needsCourse && (
               <label className="block">
                 <span className="label">
                   Course Name <span className="text-maroon-700">*</span>
@@ -170,29 +156,12 @@ export default function NewStudentPage() {
                   className="input"
                 >
                   <option value="">— Select Course —</option>
-                  {COURSE_OPTIONS.map((c) => (
+                  {courseOptions.map((c) => (
                     <option key={c}>{c}</option>
                   ))}
                 </select>
               </label>
             )}
-            <label className="block">
-              <span className="label">Postal Code (Pincode)</span>
-              <input
-                value={appFields.pincode}
-                onChange={(e) => {
-                  const pin = e.target.value.replace(/\D/g, "").slice(0, 6);
-                  setAppFields({ ...appFields, pincode: pin });
-                  if (pin.length === 6) fetchLocation(pin);
-                }}
-                placeholder="e.g. 671310"
-                maxLength={6}
-                className="input"
-              />
-              {appFields.location && (
-                <p className="mt-1.5 text-xs font-semibold text-emerald-700">✓ {appFields.location}</p>
-              )}
-            </label>
             <label className="block">
               <span className="label">Marks / Percentage (previous year)</span>
               <input

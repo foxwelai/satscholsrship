@@ -14,7 +14,11 @@ export async function GET(req: NextRequest) {
 
     if (data && Array.isArray(data) && data[0]?.Status === "Success" && data[0]?.PostOffice?.length > 0) {
       const postOffice = data[0].PostOffice[0];
-      const location = `${postOffice.Name}, ${postOffice.District}, ${postOffice.State}`;
+      // Use Block (taluk/town) rather than the post office Name, which can be a
+      // different village. District + State are always accurate.
+      const block = postOffice.Block && postOffice.Block !== "NA" ? postOffice.Block : "";
+      const parts = [block, postOffice.District, postOffice.State].filter(Boolean);
+      const location = parts.join(", ");
       return NextResponse.json({ location, pincode: pin });
     }
 
