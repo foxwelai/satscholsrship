@@ -7,8 +7,14 @@ import { getSession } from "@/lib/auth";
 export async function GET(req: NextRequest) {
   const key = req.nextUrl.searchParams.get("key");
 
+  // No key → return the academic-year configuration in one shot.
   if (!key) {
-    return NextResponse.json({ error: "Missing key parameter" }, { status: 400 });
+    const rows = await db.select().from(settings);
+    const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+    return NextResponse.json({
+      current_academic_year: map.current_academic_year ?? "",
+      renewal_year: map.renewal_year ?? "",
+    });
   }
 
   const [setting] = await db.select().from(settings).where(eq(settings.key, key));
@@ -28,7 +34,8 @@ export async function POST(req: NextRequest) {
 
   const { key, value } = await req.json();
 
-  if (!key || !value) {
+  // Empty string is a valid value (e.g. clearing renewal_year closes renewals).
+  if (!key || value === undefined || value === null) {
     return NextResponse.json({ error: "Missing key or value" }, { status: 400 });
   }
 

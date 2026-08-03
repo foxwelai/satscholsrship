@@ -9,7 +9,7 @@ export const petes = pgTable("petes", {
   active: boolean("active").notNull().default(true),
 });
 
-// role: 'super_admin' | 'pete_admin'
+// role: 'super_admin' | 'pete_admin' | 'staff_admin'
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
@@ -35,9 +35,9 @@ export const students = pgTable("students", {
   schoolAddress: text("school_address").notNull().default(""),
   schoolPhone: text("school_phone").notNull().default(""),
   fatherName: text("father_name").notNull().default(""),
+  fatherOccupation: text("father_occupation").notNull().default(""),
   address: text("address").notNull().default(""),
   motherName: text("mother_name").notNull().default(""),
-  motherOccupation: text("mother_occupation").notNull().default(""),
   familyIncome: text("family_income").notNull().default(""),
   contactPhone: text("contact_phone").notNull().default(""),
   bankAccount: text("bank_account").notNull().default(""),
@@ -51,7 +51,7 @@ export const students = pgTable("students", {
 });
 
 // One row per financial year a student applies/renews for.
-// status: 'Applied' | 'Approved' | 'Rejected' | 'Closed'
+// status: 'Pending Approval' | 'Approved' | 'Rejected' | 'Closed'
 // `closed` is a separate fast-track flag: staff can approve and close a
 // renewal in one action once a student is already vetted from prior years.
 export const applications = pgTable(
@@ -64,11 +64,15 @@ export const applications = pgTable(
     financialYear: text("financial_year").notNull(),
     category: text("category").notNull().default(""),
     currentClass: text("current_class").notNull().default(""),
+    courseName: text("course_name").notNull().default(""),
+    pincode: varchar("pincode", { length: 6 }).notNull().default(""),
+    location: text("location").notNull().default(""),
     prevYearMarks: text("prev_year_marks").notNull().default(""),
     annualFee: text("annual_fee").notNull().default(""),
     scholarshipAmount: integer("scholarship_amount").notNull().default(0),
-    status: text("status").notNull().default("Applied"),
+    status: text("status").notNull().default("Pending Approval"),
     closed: boolean("closed").notNull().default(false),
+    rejectionReason: text("rejection_reason").notNull().default(""),
     approvedAt: timestamp("approved_at", { withTimezone: true }),
     closedAt: timestamp("closed_at", { withTimezone: true }),
     createdBy: integer("created_by").references(() => users.id),

@@ -1,22 +1,30 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import ApplicationForm, { ApplicationValues } from "@/components/ApplicationForm";
-import { financialYearOptions } from "@/lib/constants";
+import { nextClass } from "@/lib/constants";
 
 type StudentSummary = {
   id: number;
   student_id: string;
   name: string;
   pete_name: string;
-  applications: { financialYear: string; category: string; currentClass: string }[];
+  applications: {
+    financialYear: string;
+    category: string;
+    currentClass: string;
+    courseName?: string;
+    pincode?: string;
+    location?: string;
+  }[];
 };
 
-export default function NewApplicationYearPage() {
+function NewApplicationYearInner() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [student, setStudent] = useState<StudentSummary | null>(null);
   const [done, setDone] = useState(false);
 
@@ -66,29 +74,42 @@ export default function NewApplicationYearPage() {
   }
 
   const latest = [...student.applications].sort((a, b) => (a.financialYear < b.financialYear ? 1 : -1))[0];
-  const suggestedYear =
-    financialYearOptions().find((fy) => !student.applications.some((a) => a.financialYear === fy)) ??
-    financialYearOptions()[3];
+  // Either the renew wizard passed the (settings-gated) year, or leave it
+  // empty and ApplicationForm defaults to the current academic year.
+  const suggestedYear = searchParams.get("year") ?? "";
 
   return (
     <div>
       <h1 className="page-title">Renew — {student.name}</h1>
       <p className="page-subtitle mb-6">
         <span className="font-mono font-semibold text-maroon-800">{student.student_id}</span> ·{" "}
-        {student.pete_name} Pete. Add this year&apos;s class and details, then either save as a
-        normal application or fast-track with{" "}
-        <span className="font-semibold text-emerald-700">Approve &amp; Close</span> for a returning,
-        already-vetted student.
+        {student.pete_name} Pete. Add this year&apos;s class and details — the application will go
+        to the super admin for approval.
       </p>
       <ApplicationForm
         mode="create"
         initial={{
           financial_year: suggestedYear,
-          category: latest?.category ?? "",
-          current_class: latest?.currentClass ?? "",
+          category: searchParams.get("category") ?? latest?.category ?? "",
+          // Default to the NEXT year of the same class (1st Year → 2nd Year)
+          // unless the renew wizard already chose one.
+          current_class:
+            searchParams.get("class") ??
+            (latest ? nextClass(latest.category, latest.currentClass) : ""),
+          course_name: searchParams.get("course") || (latest?.courseName ?? ""),
+          pincode: latest?.pincode ?? "",
+          location: latest?.location ?? "",
         }}
         onSave={handleSave}
       />
     </div>
+  );
+}
+
+export default function NewApplicationYearPage() {
+  return (
+    <Suspense>
+      <NewApplicationYearInner />
+    </Suspense>
   );
 }

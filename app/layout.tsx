@@ -39,6 +39,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         { href: "/form", label: "Blank Form", icon: "🖨️" },
         ...(session.role === "super_admin"
           ? [
+              { href: "/admin/applications", label: "Approvals", icon: "✅" },
               { href: "/admin/users", label: "User Access", icon: "🔐" },
               { href: "/admin/rates", label: "Scholarship Rates", icon: "💰" },
               { href: "/admin/settings", label: "Settings", icon: "⚙️" },
@@ -85,9 +86,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                       <span className="text-gold-300">
                         {session.role === "super_admin"
                           ? "Super Admin"
-                          : peteName
-                            ? `${peteName} Pete`
-                            : "Pete Admin"}
+                          : session.role === "staff_admin"
+                            ? "Staff Admin · All Petes"
+                            : peteName
+                              ? `${peteName} Pete`
+                              : "Pete Admin"}
                       </span>
                     </span>
                     <LogoutButton />

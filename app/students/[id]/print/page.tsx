@@ -10,6 +10,9 @@ type Application = {
   financialYear: string;
   category: string;
   currentClass: string;
+  courseName: string;
+  pincode: string;
+  location: string;
   prevYearMarks: string;
   annualFee: string;
 };
@@ -40,6 +43,9 @@ export default function PrintStudentPage() {
       ...student,
       category: app?.category ?? "",
       current_class: app?.currentClass ?? "",
+      course_name: app?.courseName ?? "",
+      pincode: app?.pincode ?? "",
+      location: app?.location ?? "",
       prev_year_marks: app?.prevYearMarks ?? "",
       annual_fee: app?.annualFee ?? "",
       financial_year: app?.financialYear ?? "",

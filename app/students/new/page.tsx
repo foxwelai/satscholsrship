@@ -4,12 +4,15 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import StudentForm, { StudentFormValues } from "@/components/StudentForm";
 import { useSession } from "@/lib/useSession";
-import { CATEGORIES, CLASSES, currentFinancialYear, financialYearOptions } from "@/lib/constants";
+import { CATEGORIES, CLASSES, COURSE_OPTIONS, currentFinancialYear } from "@/lib/constants";
 
 type AppFields = {
   financial_year: string;
   category: string;
   current_class: string;
+  course_name: string;
+  pincode: string;
+  location: string;
   prev_year_marks: string;
   annual_fee: string;
 };
@@ -21,22 +24,36 @@ export default function NewStudentPage() {
     financial_year: currentFinancialYear(),
     category: "",
     current_class: "",
+    course_name: "",
+    pincode: "",
+    location: "",
     prev_year_marks: "",
     annual_fee: "",
   });
-  const [yearOptions, setYearOptions] = useState<string[]>(financialYearOptions());
-
-  // Merge financial years configured in Scholarship Rates into the dropdown.
+  // New applications are always for the configured current academic year —
+  // no other year can be picked.
   useEffect(() => {
-    fetch("/api/rates")
+    fetch("/api/settings")
       .then((r) => r.json())
-      .then((data: { years?: string[] }) => {
-        setYearOptions((prev) =>
-          Array.from(new Set([...prev, ...(data.years ?? [])])).sort((a, b) => (a < b ? 1 : -1))
-        );
+      .then((data: { current_academic_year?: string }) => {
+        if (data.current_academic_year) {
+          setAppFields((prev) => ({ ...prev, financial_year: data.current_academic_year! }));
+        }
       })
       .catch(() => {});
   }, []);
+
+  async function fetchLocation(pincode: string) {
+    try {
+      const res = await fetch(`/api/pincode?pin=${pincode}`);
+      const data = await res.json();
+      if (data.location) {
+        setAppFields((prev) => ({ ...prev, location: data.location }));
+      }
+    } catch {
+      // Silently fail, let user enter manually
+    }
+  }
 
   async function handleSubmit(values: StudentFormValues): Promise<string | null> {
     if (!appFields.category || !appFields.current_class) {
@@ -104,16 +121,10 @@ export default function NewStudentPage() {
               <span className="label">
                 Financial Year <span className="text-maroon-700">*</span>
               </span>
-              <select
-                required
-                value={appFields.financial_year}
-                onChange={(e) => setAppFields({ ...appFields, financial_year: e.target.value })}
-                className="input"
-              >
-                {yearOptions.map((fy) => (
-                  <option key={fy}>{fy}</option>
-                ))}
-              </select>
+              <input disabled value={appFields.financial_year} className="input font-mono" />
+              <p className="mt-1.5 text-xs text-stone-400">
+                Current academic year — set by the super admin in Settings.
+              </p>
             </label>
             <label className="block">
               <span className="label">
@@ -146,6 +157,41 @@ export default function NewStudentPage() {
                   <option key={c}>{c}</option>
                 ))}
               </select>
+            </label>
+            {(appFields.category === "Engineering" || appFields.category === "Degree") && (
+              <label className="block">
+                <span className="label">
+                  Course Name <span className="text-maroon-700">*</span>
+                </span>
+                <select
+                  required
+                  value={appFields.course_name}
+                  onChange={(e) => setAppFields({ ...appFields, course_name: e.target.value })}
+                  className="input"
+                >
+                  <option value="">— Select Course —</option>
+                  {COURSE_OPTIONS.map((c) => (
+                    <option key={c}>{c}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <label className="block">
+              <span className="label">Postal Code (Pincode)</span>
+              <input
+                value={appFields.pincode}
+                onChange={(e) => {
+                  const pin = e.target.value.replace(/\D/g, "").slice(0, 6);
+                  setAppFields({ ...appFields, pincode: pin });
+                  if (pin.length === 6) fetchLocation(pin);
+                }}
+                placeholder="e.g. 671310"
+                maxLength={6}
+                className="input"
+              />
+              {appFields.location && (
+                <p className="mt-1.5 text-xs font-semibold text-emerald-700">✓ {appFields.location}</p>
+              )}
             </label>
             <label className="block">
               <span className="label">Marks / Percentage (previous year)</span>

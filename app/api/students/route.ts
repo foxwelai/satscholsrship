@@ -3,12 +3,13 @@ import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
 import { db, generateStudentId } from "@/lib/db";
 import { students, petes, applications } from "@/lib/schema";
 import { getSession } from "@/lib/auth";
-import { currentFinancialYear, financialYearStart } from "@/lib/constants";
+import { financialYearStart } from "@/lib/constants";
+import { getAcademicYears } from "@/lib/settings";
 
 const PROFILE_FIELDS = [
   "name", "mobile", "dob", "aadhar",
   "school_name",
-  "father_name", "address", "mother_name", "mother_occupation", "family_income", "contact_phone",
+  "father_name", "father_occupation", "address", "mother_name", "family_income", "contact_phone",
   "bank_account", "bank_name", "bank_branch", "ifsc",
   "photo_path", "passbook_path",
 ] as const;
@@ -16,8 +17,8 @@ const PROFILE_FIELDS = [
 const fieldMap: Record<string, keyof typeof students.$inferInsert> = {
   name: "name", mobile: "mobile", dob: "dob", aadhar: "aadhar",
   school_name: "schoolName",
-  father_name: "fatherName", address: "address", mother_name: "motherName",
-  mother_occupation: "motherOccupation", family_income: "familyIncome", contact_phone: "contactPhone",
+  father_name: "fatherName", father_occupation: "fatherOccupation", address: "address", mother_name: "motherName",
+  family_income: "familyIncome", contact_phone: "contactPhone",
   bank_account: "bankAccount", bank_name: "bankName", bank_branch: "bankBranch", ifsc: "ifsc",
   photo_path: "photoPath", passbook_path: "passbookPath",
 };
@@ -103,13 +104,22 @@ export async function POST(req: NextRequest) {
   if (!body.address?.trim()) {
     return NextResponse.json({ error: "Residential address / location is required" }, { status: 400 });
   }
+  if (!body.father_occupation?.trim()) {
+    return NextResponse.json({ error: "Father's occupation is required" }, { status: 400 });
+  }
   const aadhar = (body.aadhar ?? "").replace(/\D/g, "");
   if (!/^\d{12}$/.test(aadhar)) {
     return NextResponse.json({ error: "A valid 12-digit Aadhar number is required" }, { status: 400 });
   }
+  // staff_admin can submit for any Pete, pete_admin is restricted to their Pete, super_admin can submit for any Pete
   const peteId = session.role === "pete_admin" ? session.peteId! : Number(body.pete_id);
   if (!peteId) {
     return NextResponse.json({ error: "Pete is required" }, { status: 400 });
+  }
+
+  // Validate course_name is provided for Engineering/Degree
+  if ((body.category === "Engineering" || body.category === "Degree") && !body.course_name?.trim()) {
+    return NextResponse.json({ error: "Course name is required for Engineering/Degree" }, { status: 400 });
   }
 
   const [dup] = await db.select({ studentId: students.studentId }).from(students).where(eq(students.aadhar, aadhar));
@@ -122,7 +132,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const financialYear = body.financial_year || currentFinancialYear();
+  // New registrations always target the configured current academic year —
+  // old financial years can never be selected.
+  const { current } = await getAcademicYears();
+  const financialYear = current;
   const regYear = financialYearStart(financialYear);
 
   try {
@@ -147,9 +160,12 @@ export async function POST(req: NextRequest) {
         financialYear,
         category: body.category ?? "",
         currentClass: body.current_class ?? "",
+        courseName: body.course_name ?? "",
+        pincode: body.pincode ?? "",
+        location: body.location ?? "",
         prevYearMarks: body.prev_year_marks ?? "",
         annualFee: body.annual_fee ?? "",
-        status: "Applied",
+        status: "Pending Approval",
         createdBy: session.userId,
       });
 

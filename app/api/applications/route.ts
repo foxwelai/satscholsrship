@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db, isUniqueViolation } from "@/lib/db";
 import { students, applications } from "@/lib/schema";
 import { getSession } from "@/lib/auth";
+import { getAcademicYears } from "@/lib/settings";
 
 export async function POST(req: NextRequest) {
   const session = await getSession();
@@ -21,7 +22,48 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const approveAndClose = body.action === "approve_close";
+  if ((body.category === "Engineering" || body.category === "Degree") && !body.course_name?.trim()) {
+    return NextResponse.json({ error: "Course name is required for Engineering/Degree" }, { status: 400 });
+  }
+
+  // Year rules: applications may only target the current academic year, or —
+  // once the super admin opens it in Settings — the renewal year, and then
+  // only for students whose current-year application is already Approved.
+  const { current, renewal } = await getAcademicYears();
+  if (financialYear !== current && financialYear !== renewal) {
+    return NextResponse.json(
+      {
+        error: renewal
+          ? `Applications can only be created for ${current} or the open renewal year ${renewal}`
+          : `Applications can only be created for the current academic year ${current} — renewals for the next year are not open yet`,
+      },
+      { status: 400 }
+    );
+  }
+  if (renewal && financialYear === renewal && renewal !== current) {
+    const [curApp] = await db
+      .select({ status: applications.status })
+      .from(applications)
+      .where(and(eq(applications.studentId, studentId), eq(applications.financialYear, current)));
+    if (!curApp || !["Approved", "Closed"].includes(curApp.status)) {
+      return NextResponse.json(
+        {
+          error: `This student's ${current} application must be Approved before renewing for ${renewal}`,
+        },
+        { status: 400 }
+      );
+    }
+  }
+
+  // Only the super admin can fast-track (approve & close). Everyone else's
+  // submissions always enter the queue as Pending Approval.
+  const approveAndClose = body.action === "approve_close" && session.role === "super_admin";
+  if (body.action === "approve_close" && session.role !== "super_admin") {
+    return NextResponse.json(
+      { error: "Only the super admin can approve applications — submit it for approval instead" },
+      { status: 403 }
+    );
+  }
   const now = new Date();
 
   try {
@@ -32,9 +74,12 @@ export async function POST(req: NextRequest) {
         financialYear,
         category: body.category ?? "",
         currentClass: body.current_class ?? "",
+        courseName: body.course_name ?? "",
+        pincode: body.pincode ?? "",
+        location: body.location ?? "",
         prevYearMarks: body.prev_year_marks ?? "",
         annualFee: body.annual_fee ?? "",
-        status: approveAndClose ? "Approved" : "Applied",
+        status: approveAndClose ? "Approved" : "Pending Approval",
         closed: approveAndClose,
         approvedAt: approveAndClose ? now : null,
         closedAt: approveAndClose ? now : null,

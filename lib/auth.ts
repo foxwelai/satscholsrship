@@ -5,7 +5,7 @@ import bcrypt from "bcryptjs";
 const SESSION_COOKIE = "sat_session";
 const secret = new TextEncoder().encode(process.env.SESSION_SECRET!);
 
-export type Role = "super_admin" | "pete_admin";
+export type Role = "super_admin" | "pete_admin" | "staff_admin";
 
 export type SessionPayload = {
   userId: number;
