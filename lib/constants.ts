@@ -36,9 +36,44 @@ export const CLASSES: Record<string, string[]> = {
 
 export const ALL_CLASSES = Object.values(CLASSES).flat();
 
+// Next year's class within the same category — e.g. "Degree - 1st Year" →
+// "Degree - 2nd Year". Stays on the final year if already there.
+export function nextClass(category: string, currentClass: string): string {
+  const list = CLASSES[category] ?? [];
+  const i = list.indexOf(currentClass);
+  if (i === -1) return currentClass;
+  return list[Math.min(i + 1, list.length - 1)];
+}
+
+// Course options for Engineering and Degree categories
+export const COURSE_OPTIONS = [
+  "B.Com.",
+  "M.Com.",
+  "B.Sc.",
+  "M.Sc.",
+  "B.Tech.",
+  "M.Tech.",
+  "B.A.",
+  "M.A.",
+  "Other",
+] as const;
+
+// Occupation options
+export const OCCUPATION_OPTIONS = [
+  "Business",
+  "Service (Government)",
+  "Service (Private)",
+  "Agriculture",
+  "Labor",
+  "Homemaker",
+  "Retired",
+  "Deceased",
+  "Other",
+] as const;
+
 // Application status per financial year. "Closed" marks a scholarship cycle
 // as fully disbursed/finished for that student that year.
-export const APPLICATION_STATUSES = ["Applied", "Approved", "Rejected", "Closed"] as const;
+export const APPLICATION_STATUSES = ["Pending Approval", "Approved", "Rejected", "Closed"] as const;
 
 // Indian financial year runs April–March, e.g. "2026-27".
 export function currentFinancialYear(date = new Date()): string {
@@ -49,6 +84,12 @@ export function currentFinancialYear(date = new Date()): string {
 
 export function financialYearStart(fy: string): number {
   return parseInt(fy.split("-")[0], 10);
+}
+
+// "2026-27" → "2027-28"
+export function nextFinancialYear(fy: string): string {
+  const start = financialYearStart(fy) + 1;
+  return `${start}-${String((start + 1) % 100).padStart(2, "0")}`;
 }
 
 // Recent + upcoming financial years for dropdowns.

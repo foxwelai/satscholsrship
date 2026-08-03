@@ -6,9 +6,9 @@ import { getSession } from "@/lib/auth";
 
 const EDITABLE_FIELDS: Record<string, keyof typeof students.$inferInsert> = {
   name: "name", mobile: "mobile", dob: "dob", aadhar: "aadhar",
-  school_name: "schoolName", school_address: "schoolAddress", school_phone: "schoolPhone",
-  father_name: "fatherName", address: "address", mother_name: "motherName",
-  mother_occupation: "motherOccupation", family_income: "familyIncome", contact_phone: "contactPhone",
+  school_name: "schoolName",
+  father_name: "fatherName", father_occupation: "fatherOccupation", address: "address",
+  mother_name: "motherName", family_income: "familyIncome", contact_phone: "contactPhone",
   bank_account: "bankAccount", bank_name: "bankName", bank_branch: "bankBranch", ifsc: "ifsc",
   photo_path: "photoPath", passbook_path: "passbookPath",
 };
@@ -26,12 +26,10 @@ async function loadStudent(id: number) {
       dob: students.dob,
       aadhar: students.aadhar,
       school_name: students.schoolName,
-      school_address: students.schoolAddress,
-      school_phone: students.schoolPhone,
       father_name: students.fatherName,
+      father_occupation: students.fatherOccupation,
       address: students.address,
       mother_name: students.motherName,
-      mother_occupation: students.motherOccupation,
       family_income: students.familyIncome,
       contact_phone: students.contactPhone,
       bank_account: students.bankAccount,

@@ -15,10 +15,14 @@ type StudentDetail = {
     financialYear: string;
     category: string;
     currentClass: string;
+    courseName: string;
+    pincode: string;
+    location: string;
     prevYearMarks: string;
     annualFee: string;
     status: string;
     closed: boolean;
+    rejectionReason: string;
   }[];
 };
 
@@ -82,6 +86,18 @@ export default function EditApplicationPage() {
 
       {saved && <div className="alert-success mb-4">✓ Application updated</div>}
 
+      {app.status === "Rejected" && app.rejectionReason && (
+        <div className="alert-error mb-4">
+          ✗ This application was rejected — <span className="font-normal">{app.rejectionReason}</span>
+        </div>
+      )}
+
+      {app.status === "Pending Approval" && (
+        <div className="mb-4 rounded-xl border border-gold-300 bg-gold-100/60 px-4 py-3 text-sm font-semibold text-gold-700">
+          ⏳ Awaiting super admin approval.
+        </div>
+      )}
+
       {app.closed && (
         <div className="mb-4 flex items-center justify-between rounded-xl border border-stone-300 bg-stone-100/80 px-4 py-3">
           <p className="text-sm font-semibold text-stone-600">
@@ -103,6 +119,9 @@ export default function EditApplicationPage() {
           financial_year: app.financialYear,
           category: app.category,
           current_class: app.currentClass,
+          course_name: app.courseName,
+          pincode: app.pincode,
+          location: app.location,
           prev_year_marks: app.prevYearMarks,
           annual_fee: app.annualFee,
           status: app.status,

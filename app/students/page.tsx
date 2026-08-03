@@ -36,12 +36,6 @@ function StatusBadge({ status, closed }: { status: string; closed: boolean }) {
   );
 }
 
-function getNextFinancialYear(currentFY: string): string {
-  const [year] = currentFY.split("-");
-  const yearNum = parseInt(year) + 1;
-  return `${yearNum}-${String(yearNum + 1).slice(-2)}`;
-}
-
 export default function SearchStudentsPage() {
   const session = useSession();
   const [q, setQ] = useState("");
@@ -50,29 +44,24 @@ export default function SearchStudentsPage() {
   const [results, setResults] = useState<StudentRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [currentYear, setCurrentYear] = useState("");
+  const [renewalYear, setRenewalYear] = useState("");
   const [selectedYear, setSelectedYear] = useState("");
-  const [availableYears, setAvailableYears] = useState<string[]>([]);
 
   useEffect(() => {
     fetch("/api/petes").then((r) => r.json()).then(setPetes);
-    fetch("/api/settings?key=current_academic_year")
+    // Only the configured current year (and the open renewal year, if any)
+    // are ever selectable — old financial years are not offered.
+    fetch("/api/settings")
       .then((r) => r.json())
       .then((data) => {
-        setCurrentYear(data.value);
-        setSelectedYear(data.value);
+        setCurrentYear(data.current_academic_year || "");
+        setRenewalYear(data.renewal_year || "");
+        setSelectedYear(data.current_academic_year || "");
       })
       .catch(() => {});
   }, []);
 
-  // Fetch available years from reports API
-  useEffect(() => {
-    fetch("/api/reports?type=bank")
-      .then((r) => r.json())
-      .then((data) => {
-        setAvailableYears(data.years || []);
-      })
-      .catch(() => {});
-  }, []);
+  const availableYears = [currentYear, renewalYear].filter(Boolean);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -122,7 +111,6 @@ export default function SearchStudentsPage() {
           onChange={(e) => setSelectedYear(e.target.value)}
           className="input w-auto py-3"
         >
-          <option value="">All Years</option>
           {availableYears.map((year) => (
             <option key={year} value={year}>
               {year}
@@ -175,7 +163,10 @@ export default function SearchStudentsPage() {
               </tr>
             ) : (
               results.map((s) => {
-                const nextFY = getNextFinancialYear(s.financial_year);
+                const canRenew =
+                  !!renewalYear &&
+                  s.financial_year === currentYear &&
+                  ["Approved", "Closed"].includes(s.status);
                 return (
                   <tr key={s.id}>
                     <td>
@@ -196,12 +187,25 @@ export default function SearchStudentsPage() {
                       <StatusBadge status={s.status} closed={s.closed} />
                     </td>
                     <td className="text-right print:hidden">
-                      <Link
-                        href={`/students/renew?student_id=${s.id}&next_year=${encodeURIComponent(nextFY)}`}
-                        className="text-xs font-bold text-maroon-700 hover:underline whitespace-nowrap"
-                      >
-                        Renew →
-                      </Link>
+                      {canRenew ? (
+                        <Link
+                          href={`/students/renew?student_id=${s.id}`}
+                          className="text-xs font-bold text-maroon-700 hover:underline whitespace-nowrap"
+                        >
+                          Renew →
+                        </Link>
+                      ) : (
+                        <span
+                          title={
+                            !renewalYear
+                              ? "Renewals are not open yet — the super admin must open the next financial year in Settings"
+                              : `The ${currentYear} application must be Approved before renewal`
+                          }
+                          className="cursor-not-allowed text-xs font-bold whitespace-nowrap text-stone-300"
+                        >
+                          Renew →
+                        </span>
+                      )}
                     </td>
                   </tr>
                 );

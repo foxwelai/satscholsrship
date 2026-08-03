@@ -11,10 +11,14 @@ type Application = {
   financialYear: string;
   category: string;
   currentClass: string;
+  courseName: string;
+  pincode: string;
+  location: string;
   prevYearMarks: string;
   annualFee: string;
   status: string;
   closed: boolean;
+  rejectionReason: string;
   approvedAt: string | null;
   closedAt: string | null;
 };
@@ -123,6 +127,8 @@ export default function StudentDetailPage() {
                   <th className="px-5 py-2.5">Financial Year</th>
                   <th className="py-2.5 pr-4">Class</th>
                   <th className="py-2.5 pr-4">Category</th>
+                  <th className="py-2.5 pr-4">Course</th>
+                  <th className="py-2.5 pr-4">Location</th>
                   <th className="py-2.5 pr-4">Fee</th>
                   <th className="py-2.5 pr-4">Status</th>
                   <th className="py-2.5 pr-4">Closed</th>
@@ -135,9 +141,14 @@ export default function StudentDetailPage() {
                     <td className="px-5 py-2.5 font-semibold text-maroon-900">{a.financialYear}</td>
                     <td className="py-2.5 pr-4">{a.currentClass}</td>
                     <td className="py-2.5 pr-4">{a.category}</td>
+                    <td className="py-2.5 pr-4">{a.courseName || "—"}</td>
+                    <td className="py-2.5 pr-4 text-xs">
+                      {[a.location, a.pincode].filter(Boolean).join(" — ") || "—"}
+                    </td>
                     <td className="py-2.5 pr-4">{a.annualFee}</td>
                     <td className="py-2.5 pr-4">
                       <span
+                        title={a.status === "Rejected" && a.rejectionReason ? `Reason: ${a.rejectionReason}` : undefined}
                         className={
                           a.status === "Approved"
                             ? "badge-green"
@@ -148,6 +159,11 @@ export default function StudentDetailPage() {
                       >
                         {a.status}
                       </span>
+                      {a.status === "Rejected" && a.rejectionReason && (
+                        <p className="mt-1 max-w-52 text-[11px] leading-snug text-red-600">
+                          {a.rejectionReason}
+                        </p>
+                      )}
                     </td>
                     <td className="py-2.5 pr-4 text-xs font-semibold text-stone-500">
                       {a.closed ? "✓ Closed" : "—"}

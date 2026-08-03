@@ -32,7 +32,9 @@ export async function POST(req: NextRequest) {
   }
   const body = await req.json();
   const username = body.username?.trim().toLowerCase();
-  const role = body.role === "super_admin" ? "super_admin" : "pete_admin";
+  const role = ["super_admin", "staff_admin", "pete_admin"].includes(body.role)
+    ? body.role
+    : "pete_admin";
   const peteId = role === "pete_admin" ? Number(body.pete_id) : null;
 
   if (!username) return NextResponse.json({ error: "Username is required" }, { status: 400 });

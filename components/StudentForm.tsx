@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import PhotoUpload from "./PhotoUpload";
+import { OCCUPATION_OPTIONS } from "@/lib/constants";
 
 export type Pete = {
   id: number;
@@ -15,7 +16,7 @@ export type Pete = {
 export type Session = {
   userId: number;
   username: string;
-  role: "super_admin" | "pete_admin";
+  role: "super_admin" | "pete_admin" | "staff_admin";
   peteId: number | null;
   peteName: string | null;
 };
@@ -30,9 +31,9 @@ const EMPTY: StudentFormValues = {
   aadhar: "",
   school_name: "",
   father_name: "",
+  father_occupation: "",
   address: "",
   mother_name: "",
-  mother_occupation: "",
   family_income: "",
   contact_phone: "",
   bank_account: "",
@@ -41,6 +42,11 @@ const EMPTY: StudentFormValues = {
   ifsc: "",
   photo_path: "",
   passbook_path: "",
+  category: "",
+  current_class: "",
+  course_name: "",
+  pincode: "",
+  location: "",
 };
 
 function Input({
@@ -198,6 +204,14 @@ export default function StudentForm({
   const [ifscStatus, setIfscStatus] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  // Father's occupation dropdown: standard options, or "Other" with the
+  // actual occupation typed in manually by whoever is entering the form.
+  const [occSelect, setOccSelect] = useState<string>(() => {
+    const v = String(initial?.father_occupation ?? "");
+    if (!v) return "";
+    const standard = OCCUPATION_OPTIONS.filter((o) => o !== "Other") as readonly string[];
+    return standard.includes(v) ? v : "Other";
+  });
 
   useEffect(() => {
     fetch("/api/petes")
@@ -292,6 +306,38 @@ export default function StudentForm({
 
       <Section title="B) Family Details">
         <Input label="Father's Name" value={values.father_name} onChange={set("father_name")} />
+        <div className="block">
+          <label className="block">
+            <span className="label">
+              Father's Occupation <span className="text-maroon-700">*</span>
+            </span>
+            <select
+              required
+              value={occSelect}
+              onChange={(e) => {
+                const v = e.target.value;
+                setOccSelect(v);
+                // "Other" → occupation is whatever gets typed below.
+                set("father_occupation")(v === "Other" ? "" : v);
+              }}
+              className="input"
+            >
+              <option value="">— Select —</option>
+              {OCCUPATION_OPTIONS.map((o) => (
+                <option key={o}>{o}</option>
+              ))}
+            </select>
+          </label>
+          {occSelect === "Other" && (
+            <input
+              required
+              value={values.father_occupation === "Other" ? "" : values.father_occupation}
+              onChange={(e) => set("father_occupation")(e.target.value)}
+              placeholder="Type the occupation…"
+              className="input mt-2"
+            />
+          )}
+        </div>
         <Input
           label="Residential Address / Location"
           value={values.address}
@@ -300,7 +346,6 @@ export default function StudentForm({
           placeholder="e.g. Bolandugutturoad, Hosabettu, Manjeshwar"
         />
         <Input label="Mother's Name" value={values.mother_name} onChange={set("mother_name")} />
-        <Input label="Mother's Occupation" value={values.mother_occupation} onChange={set("mother_occupation")} />
         <Input label="Family Annual Income (₹)" value={values.family_income} onChange={set("family_income")} />
         <Input label="Contact Phone / Mobile No." value={values.contact_phone} onChange={set("contact_phone")} />
       </Section>

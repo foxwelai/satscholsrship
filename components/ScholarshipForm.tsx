@@ -10,15 +10,18 @@ export type StudentData = Partial<{
   aadhar: string;
   category: string;
   current_class: string;
+  course_name: string;
+  location: string;
+  pincode: string;
   prev_year_marks: string;
   financial_year: string;
   school_name: string;
   school_address: string;
   school_phone: string;
   father_name: string;
+  father_occupation: string;
   address: string;
   mother_name: string;
-  mother_occupation: string;
   family_income: string;
   contact_phone: string;
   bank_account: string;
@@ -136,7 +139,10 @@ export default function ScholarshipForm({ student = {} }: { student?: StudentDat
             <Field label="2) Student's Name (Name) :" value={s.name} />
             <Field label="Mobile No. :" value={s.mobile} className="pl-4" />
             <Field label="3) Date of Birth (D.O.B.) :" value={s.dob} />
-            <Field label="4) Class / Course studying in the current year :" value={s.current_class} />
+            <Field
+              label="4) Class / Course studying in the current year :"
+              value={[s.current_class, s.course_name].filter(Boolean).join(" — ")}
+            />
           </div>
           <div className="flex h-40 w-32 shrink-0 items-center justify-center border-2 border-blue-800 text-center text-[11px] text-gray-500">
             {s.photo_path ? (
@@ -170,7 +176,7 @@ export default function ScholarshipForm({ student = {} }: { student?: StudentDat
           <Field label="2) Full Address :" value={s.address} />
           <div className="dotted-line" />
           <Field label="3) Mother's Name :" value={s.mother_name} />
-          <Field label="4) Mother's Occupation :" value={s.mother_occupation} />
+          <Field label="4) Father's Occupation :" value={s.father_occupation} />
           <Field
             label="5) Family Annual Income :"
             value={s.family_income ? `₹${s.family_income}` : ""}

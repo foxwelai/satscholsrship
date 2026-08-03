@@ -6,14 +6,14 @@ import { Pete } from "@/components/StudentForm";
 type UserRow = {
   id: number;
   username: string;
-  role: "super_admin" | "pete_admin";
+  role: "super_admin" | "pete_admin" | "staff_admin";
   active: boolean;
   pete_id: number | null;
   pete_name: string | null;
   created_at: string;
 };
 
-const EMPTY = { username: "", role: "pete_admin" as "super_admin" | "pete_admin", pete_id: "" };
+const EMPTY = { username: "", role: "pete_admin" as "super_admin" | "pete_admin" | "staff_admin", pete_id: "" };
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<UserRow[]>([]);
@@ -127,10 +127,11 @@ export default function AdminUsersPage() {
           />
           <select
             value={form.role}
-            onChange={(e) => setForm({ ...form, role: e.target.value as "super_admin" | "pete_admin" })}
+            onChange={(e) => setForm({ ...form, role: e.target.value as "super_admin" | "pete_admin" | "staff_admin" })}
             className="input"
           >
             <option value="pete_admin">Pete Admin</option>
+            <option value="staff_admin">Staff Admin (all petes)</option>
             <option value="super_admin">Super Admin</option>
           </select>
           {form.role === "pete_admin" && (
@@ -173,8 +174,8 @@ export default function AdminUsersPage() {
                   {u.username}
                 </td>
                 <td>
-                  <span className={u.role === "super_admin" ? "badge-navy" : "badge-amber"}>
-                    {u.role === "super_admin" ? "Super Admin" : "Pete Admin"}
+                  <span className={u.role === "super_admin" ? "badge-navy" : u.role === "staff_admin" ? "badge-green" : "badge-amber"}>
+                    {u.role === "super_admin" ? "Super Admin" : u.role === "staff_admin" ? "Staff Admin" : "Pete Admin"}
                   </span>
                 </td>
                 <td>
