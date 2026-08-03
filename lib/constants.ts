@@ -45,18 +45,60 @@ export function nextClass(category: string, currentClass: string): string {
   return list[Math.min(i + 1, list.length - 1)];
 }
 
-// Course options for Engineering and Degree categories
-export const COURSE_OPTIONS = [
-  "B.Com.",
-  "M.Com.",
-  "B.Sc.",
-  "M.Sc.",
-  "B.Tech.",
-  "M.Tech.",
+export const DEGREE_COURSES = [
   "B.A.",
-  "M.A.",
+  "B.Com.",
+  "B.Sc.",
+  "B.B.A.",
+  "B.C.A.",
+  "B.S.W.",
   "Other",
 ] as const;
+
+export const ENGINEERING_COURSES = [
+  "B.Tech. (Computer Science)",
+  "B.Tech. (Electronics & Communication)",
+  "B.Tech. (Mechanical)",
+  "B.Tech. (Civil)",
+  "B.Tech. (Electrical)",
+  "B.E. (Computer Science)",
+  "B.E. (Electronics)",
+  "B.E. (Mechanical)",
+  "B.E. (Civil)",
+  "B.Arch.",
+  "B.Pharm.",
+  "Diploma (Engineering)",
+  "Other",
+] as const;
+
+export const MEDICAL_COURSES = [
+  "M.B.B.S.",
+  "B.D.S.",
+  "B.A.M.S.",
+  "B.H.M.S.",
+  "B.Sc. Nursing",
+  "B.Pharm.",
+  "Other",
+] as const;
+
+export const PG_COURSES = [
+  "M.A.",
+  "M.Com.",
+  "M.Sc.",
+  "M.Tech.",
+  "M.B.A.",
+  "M.C.A.",
+  "M.S.W.",
+  "Ph.D.",
+  "Other",
+] as const;
+
+export const COURSE_OPTIONS_BY_CATEGORY: Record<string, readonly string[]> = {
+  Degree: DEGREE_COURSES,
+  Engineering: ENGINEERING_COURSES,
+  Medical: MEDICAL_COURSES,
+  "Post Graduation": PG_COURSES,
+};
 
 // Occupation options
 export const OCCUPATION_OPTIONS = [

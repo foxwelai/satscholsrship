@@ -6,7 +6,7 @@ import Link from "next/link";
 import {
   CATEGORIES,
   CLASSES,
-  COURSE_OPTIONS,
+  COURSE_OPTIONS_BY_CATEGORY,
   nextClass,
 } from "@/lib/constants";
 
@@ -153,7 +153,8 @@ function RenewStudentInner() {
       });
   }, [year, category]);
 
-  const needsCourse = category === "Engineering" || category === "Degree";
+  const courseOptions = category ? COURSE_OPTIONS_BY_CATEGORY[category] ?? [] : [];
+  const needsCourse = courseOptions.length > 0;
 
   async function proceedToApplication() {
     setError("");
@@ -166,7 +167,7 @@ function RenewStudentInner() {
       return;
     }
     if (needsCourse && !course) {
-      setError("Please select the course (e.g. B.Com., B.Sc.) for Engineering / Degree");
+      setError("Please select the course for this category.");
       return;
     }
 
@@ -339,7 +340,7 @@ function RenewStudentInner() {
                 </span>
                 <select value={course} onChange={(e) => setCourse(e.target.value)} className="input">
                   <option value="">— Select Course —</option>
-                  {COURSE_OPTIONS.map((c) => (
+                  {courseOptions.map((c) => (
                     <option key={c}>{c}</option>
                   ))}
                 </select>
