@@ -97,6 +97,18 @@ export const scholarshipRates = pgTable(
   (t) => [unique("scholarship_rates_year_category_unique").on(t.financialYear, t.category)]
 );
 
+// Indian pincode directory — imported from CSV, used for local location lookup.
+// Multiple rows per pincode (one per post office); HO > PO > BO priority for
+// the "representative" location shown on the form.
+export const pincodes = pgTable("pincodes", {
+  id: serial("id").primaryKey(),
+  pincode: varchar("pincode", { length: 6 }).notNull(),
+  officename: text("officename").notNull(),
+  officetype: varchar("officetype", { length: 5 }).notNull().default("BO"),
+  district: text("district").notNull(),
+  statename: text("statename").notNull(),
+});
+
 // Settings table for global app configuration (e.g. current academic year)
 export const settings = pgTable(
   "settings",
