@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { petes } from "@/lib/schema";
 import LogoutButton from "@/components/LogoutButton";
 import NavLinks, { NavItem } from "@/components/NavLinks";
+import InstallButton from "@/components/InstallButton";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -17,6 +18,7 @@ export const metadata: Metadata = {
   title: "Scholarship Portal — Srimath Anantheshwar Temple, Manjeshwar",
   description:
     "Student scholarship management for Srimath Anantheshwar Temple, Manjeshwar (Kerala)",
+  manifest: "/manifest.json",
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
@@ -93,6 +95,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                               : "Pete Admin"}
                       </span>
                     </span>
+                    <InstallButton />
                     <LogoutButton />
                   </div>
                 </div>

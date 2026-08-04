@@ -3,6 +3,7 @@
   "configurations": [
     {
       "name": "sat-scholarship",
+      "cwd": "/Users/foxwel.ai/Documents/SAT_Scholarship",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 3000,
