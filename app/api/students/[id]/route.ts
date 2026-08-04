@@ -102,6 +102,26 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 
   await db.update(students).set(updates).where(eq(students.id, studentId));
+
+  // If pincode or location was submitted, propagate to the latest application
+  // so the value is preserved and visible when the student is viewed again.
+  if (body.pincode !== undefined || body.location !== undefined) {
+    const [latestApp] = await db
+      .select({ id: applications.id })
+      .from(applications)
+      .where(eq(applications.studentId, studentId))
+      .orderBy(desc(applications.financialYear))
+      .limit(1);
+    if (latestApp) {
+      const appUpdate: Partial<typeof applications.$inferInsert> = {};
+      if (body.pincode !== undefined) appUpdate.pincode = String(body.pincode);
+      if (body.location !== undefined) appUpdate.location = String(body.location);
+      if (Object.keys(appUpdate).length > 0) {
+        await db.update(applications).set(appUpdate).where(eq(applications.id, latestApp.id));
+      }
+    }
+  }
+
   return NextResponse.json({ ok: true });
 }
 
