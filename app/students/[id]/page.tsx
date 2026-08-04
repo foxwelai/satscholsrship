@@ -184,7 +184,22 @@ export default function StudentDetailPage() {
         )}
       </div>
 
-      <StudentForm initial={student} submitLabel="Save Changes" onSubmit={handleSubmit} session={session} />
+      <StudentForm
+        initial={{
+          ...student,
+          // pincode/location live on applications, not the students table — pull
+          // from the most recent application so Section B shows the saved value.
+          pincode: [...student.applications].sort((a, b) =>
+            b.financialYear.localeCompare(a.financialYear)
+          )[0]?.pincode ?? "",
+          location: [...student.applications].sort((a, b) =>
+            b.financialYear.localeCompare(a.financialYear)
+          )[0]?.location ?? "",
+        }}
+        submitLabel="Save Changes"
+        onSubmit={handleSubmit}
+        session={session}
+      />
     </div>
   );
 }
