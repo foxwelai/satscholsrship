@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import ApplicationForm, { ApplicationValues } from "@/components/ApplicationForm";
+import { useSession } from "@/lib/useSession";
 
 type StudentDetail = {
   id: number;
@@ -28,6 +29,8 @@ type StudentDetail = {
 
 export default function EditApplicationPage() {
   const { id, appId } = useParams<{ id: string; appId: string }>();
+  const router = useRouter();
+  const session = useSession();
   const [student, setStudent] = useState<StudentDetail | null>(null);
   const [saved, setSaved] = useState(false);
 
@@ -61,6 +64,21 @@ export default function EditApplicationPage() {
     });
     const fresh = await fetch(`/api/students/${id}`).then((r) => r.json());
     setStudent(fresh);
+  }
+
+  if (session?.role === "staff_admin") {
+    return (
+      <div className="card mx-auto max-w-lg overflow-hidden text-center p-10">
+        <p className="text-4xl">🔒</p>
+        <h1 className="mt-4 font-display text-xl text-maroon-800">Access restricted</h1>
+        <p className="mt-2 text-sm text-stone-500">
+          Staff admins can submit new applications but cannot edit existing ones.
+        </p>
+        <button onClick={() => router.back()} className="btn-secondary mt-6">
+          ← Go back
+        </button>
+      </div>
+    );
   }
 
   if (!student) return <p className="text-gray-500">Loading…</p>;

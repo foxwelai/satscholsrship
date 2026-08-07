@@ -169,12 +169,14 @@ export default function StudentDetailPage() {
                       {a.closed ? "✓ Closed" : "—"}
                     </td>
                     <td className="py-2.5 pr-5 text-right">
-                      <Link
-                        href={`/students/${id}/applications/${a.id}`}
-                        className="text-xs font-bold text-navy-700 hover:underline"
-                      >
-                        Edit →
-                      </Link>
+                      {session?.role !== "staff_admin" && (
+                        <Link
+                          href={`/students/${id}/applications/${a.id}`}
+                          className="text-xs font-bold text-navy-700 hover:underline"
+                        >
+                          Edit →
+                        </Link>
+                      )}
                     </td>
                   </tr>
                 ))}
