@@ -18,6 +18,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (session.role === "pete_admin" && existing.peteId !== session.peteId) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+  // Staff admins can submit new applications but cannot edit existing ones.
+  if (session.role === "staff_admin") {
+    return NextResponse.json({ error: "Staff admins cannot edit existing applications" }, { status: 403 });
+  }
 
   const body = await req.json();
   const now = new Date();
