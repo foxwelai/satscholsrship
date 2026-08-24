@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import ApplicationForm, { ApplicationValues } from "@/components/ApplicationForm";
+import ReviewApplicationModal, { ReviewApplication } from "@/components/ReviewApplicationModal";
 import { useSession } from "@/lib/useSession";
 
 type StudentDetail = {
@@ -33,12 +34,24 @@ export default function EditApplicationPage() {
   const session = useSession();
   const [student, setStudent] = useState<StudentDetail | null>(null);
   const [saved, setSaved] = useState(false);
+  const [pending, setPending] = useState<ReviewApplication[]>([]);
+  const [reviewOpen, setReviewOpen] = useState(false);
 
   useEffect(() => {
     fetch(`/api/students/${id}`)
       .then((r) => r.json())
       .then(setStudent);
   }, [id]);
+
+  // Refetched on every application we land on, so the queue stays accurate as
+  // we walk through it and the modal always gets fresh review data.
+  useEffect(() => {
+    if (session?.role !== "super_admin") return;
+    fetch("/api/admin/applications")
+      .then((r) => r.json())
+      .then((data) => setPending(data.applications || []))
+      .catch(() => {});
+  }, [session, appId]);
 
   async function handleSave(values: ApplicationValues, action: "save" | "approve_close") {
     const res = await fetch(`/api/applications/${appId}`, {
@@ -85,9 +98,23 @@ export default function EditApplicationPage() {
   const app = student.applications.find((a) => a.id === Number(appId));
   if (!app) return <p className="text-red-700">Application not found.</p>;
 
+  // Where this application sits in the approvals queue. When it is no longer
+  // pending (just decided, or opened from elsewhere) we start from the top.
+  const queueIndex = pending.findIndex((p) => p.id === Number(appId));
+  const reviewApp = queueIndex >= 0 ? pending[queueIndex] : null;
+  const nextPending = queueIndex >= 0 ? pending[queueIndex + 1] : pending[0];
+
+  function goToNext() {
+    if (nextPending) {
+      router.push(`/students/${nextPending.db_student_id}/applications/${nextPending.id}`);
+    } else {
+      router.push("/admin/applications");
+    }
+  }
+
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="page-title">
             {student.name} — {app.financialYear}
@@ -97,9 +124,16 @@ export default function EditApplicationPage() {
             {student.pete_name} Pete
           </p>
         </div>
-        <Link href={`/students/${id}`} className="btn-secondary px-3.5 py-2 text-xs">
-          ← Back to Student
-        </Link>
+        <div className="flex gap-2">
+          {reviewApp && (
+            <button onClick={() => setReviewOpen(true)} className="btn-success px-3.5 py-2 text-xs">
+              ✓ Approve / Reject
+            </button>
+          )}
+          <Link href={`/students/${id}`} className="btn-secondary px-3.5 py-2 text-xs">
+            ← Back to Student
+          </Link>
+        </div>
       </div>
 
       {saved && <div className="alert-success mb-4">✓ Application updated</div>}
@@ -146,6 +180,46 @@ export default function EditApplicationPage() {
         }}
         onSave={handleSave}
       />
+
+      {session?.role === "super_admin" && pending.length > 0 && (
+        <div className="card mt-4 flex flex-wrap items-center justify-between gap-3 p-4">
+          <p className="text-sm text-stone-500">
+            {pending.length} application{pending.length !== 1 ? "s" : ""} pending approval
+            {nextPending && (
+              <>
+                {" · next up "}
+                <span className="font-mono font-semibold text-maroon-800">
+                  {nextPending.student_id}
+                </span>{" "}
+                <span className="font-medium text-stone-600">{nextPending.name}</span>
+              </>
+            )}
+          </p>
+          <div className="flex gap-2">
+            <Link href="/admin/applications" className="btn-secondary px-3.5 py-2 text-xs">
+              Approvals queue
+            </Link>
+            {nextPending && (
+              <button onClick={goToNext} className="btn-navy px-3.5 py-2 text-xs">
+                Next application →
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {reviewOpen && reviewApp && (
+        <ReviewApplicationModal
+          app={reviewApp}
+          onClose={() => setReviewOpen(false)}
+          // Decided — move straight on to the next one in the queue without
+          // leaving the editor.
+          onDecided={() => {
+            setReviewOpen(false);
+            goToNext();
+          }}
+        />
+      )}
     </div>
   );
 }

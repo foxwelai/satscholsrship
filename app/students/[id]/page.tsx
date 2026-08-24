@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import StudentForm, { StudentFormValues } from "@/components/StudentForm";
+import ReviewApplicationModal, { ReviewApplication } from "@/components/ReviewApplicationModal";
 import { useSession } from "@/lib/useSession";
 
 type Application = {
@@ -39,6 +40,8 @@ export default function StudentDetailPage() {
   const [student, setStudent] = useState<StudentDetail | null>(null);
   const [saved, setSaved] = useState(false);
   const [notFound, setNotFound] = useState(false);
+  const [pending, setPending] = useState<ReviewApplication[]>([]);
+  const [reviewApp, setReviewApp] = useState<ReviewApplication | null>(null);
 
   useEffect(() => {
     fetch(`/api/students/${id}`)
@@ -46,6 +49,16 @@ export default function StudentDetailPage() {
       .then(setStudent)
       .catch(() => setNotFound(true));
   }, [id]);
+
+  // The approvals queue doubles as the review data source: it already carries
+  // the photo and the rate-derived scholarship amount the modal shows.
+  useEffect(() => {
+    if (session?.role !== "super_admin") return;
+    fetch("/api/admin/applications")
+      .then((r) => r.json())
+      .then((data) => setPending(data.applications || []))
+      .catch(() => {});
+  }, [session, id]);
 
   async function handleSubmit(values: StudentFormValues): Promise<string | null> {
     const res = await fetch(`/api/students/${id}`, {
@@ -77,6 +90,8 @@ export default function StudentDetailPage() {
 
   if (notFound) return <p className="text-red-700">Student not found.</p>;
   if (!student) return <p className="text-gray-500">Loading…</p>;
+
+  const pendingById = new Map(pending.map((p) => [p.id, p]));
 
   return (
     <div>
@@ -168,15 +183,25 @@ export default function StudentDetailPage() {
                     <td className="py-2.5 pr-4 text-xs font-semibold text-stone-500">
                       {a.closed ? "✓ Closed" : "—"}
                     </td>
-                    <td className="py-2.5 pr-5 text-right">
-                      {session?.role !== "staff_admin" && (
-                        <Link
-                          href={`/students/${id}/applications/${a.id}`}
-                          className="text-xs font-bold text-navy-700 hover:underline"
-                        >
-                          Edit →
-                        </Link>
-                      )}
+                    <td className="py-2.5 pr-5">
+                      <div className="flex items-center justify-end gap-3">
+                        {pendingById.has(a.id) && (
+                          <button
+                            onClick={() => setReviewApp(pendingById.get(a.id)!)}
+                            className="cursor-pointer text-xs font-bold text-emerald-700 hover:underline"
+                          >
+                            Approve / Reject
+                          </button>
+                        )}
+                        {session?.role !== "staff_admin" && (
+                          <Link
+                            href={`/students/${id}/applications/${a.id}`}
+                            className="text-xs font-bold text-navy-700 hover:underline"
+                          >
+                            Edit →
+                          </Link>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -202,6 +227,16 @@ export default function StudentDetailPage() {
         onSubmit={handleSubmit}
         session={session}
       />
+
+      {reviewApp && (
+        <ReviewApplicationModal
+          app={reviewApp}
+          onClose={() => setReviewApp(null)}
+          // Decided here means this one is off the queue — go straight back to
+          // the approvals list to pick up the next application.
+          onDecided={() => router.push("/admin/applications")}
+        />
+      )}
     </div>
   );
 }
