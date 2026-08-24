@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Pete } from "@/components/StudentForm";
+import { CATEGORIES } from "@/lib/constants";
 import { useSession } from "@/lib/useSession";
 
 type Row = {
@@ -32,7 +33,7 @@ const BANK_GROUPS = [
 const MODES = [
   { key: "flat", label: "Consolidated" },
   { key: "bank", label: "Bank-wise" },
-  { key: "branch", label: "Branch-wise" },
+  { key: "class", label: "Class-wise" },
 ];
 
 function inr(n: number) {
@@ -92,18 +93,31 @@ export default function ReportsPage() {
     };
   }, [rows]);
 
-  // Bank-wise / branch-wise grouping with per-group subtotals.
+  // Bank-wise / class-wise grouping with per-group subtotals. Groups come from
+  // the rows themselves, so only classes actually present in the data appear.
   const groups = useMemo(() => {
     if (!rows || mode === "flat") return [];
     const map = new Map<string, Row[]>();
     for (const r of rows) {
-      const bank = r.bank_name || "(No bank recorded)";
-      const key = mode === "bank" ? bank : `${bank} — ${r.bank_branch || "(No branch)"}`;
+      const key =
+        mode === "bank"
+          ? r.bank_name || "(No bank recorded)"
+          : r.category || "(No class recorded)";
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(r);
     }
+    // Classes read best in syllabus order (P.U.C. → Post Graduation) rather
+    // than alphabetically; banks and any unrecognised class stay alphabetical.
+    const rank = (label: string) => {
+      const i = (CATEGORIES as readonly string[]).indexOf(label);
+      return i === -1 ? CATEGORIES.length : i;
+    };
     return Array.from(map.entries())
-      .sort((a, b) => a[0].localeCompare(b[0]))
+      .sort((a, b) =>
+        mode === "class" && rank(a[0]) !== rank(b[0])
+          ? rank(a[0]) - rank(b[0])
+          : a[0].localeCompare(b[0])
+      )
       .map(([label, list]) => ({
         label,
         list,
@@ -418,7 +432,7 @@ export default function ReportsPage() {
                             colSpan={colCount}
                             className="bg-navy-100/60! py-2! font-display text-[14px] tracking-wide text-navy-900"
                           >
-                            🏦 {g.label}
+                            {mode === "class" ? "🎓" : "🏦"} {g.label}
                           </td>
                         </tr>
                         {g.list.map((r) => (

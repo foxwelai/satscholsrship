@@ -114,20 +114,12 @@ export default function AdminApplicationsPage() {
                     {new Date(app.created_at).toLocaleDateString("en-IN")}
                   </td>
                   <td className="text-right">
-                    <div className="flex items-center justify-end gap-3">
-                      <button
-                        onClick={() => setSelectedApp(app)}
-                        className="cursor-pointer text-xs font-bold text-navy-700 hover:underline"
-                      >
-                        Review →
-                      </button>
-                      <Link
-                        href={`/students/${app.db_student_id}/applications/${app.id}`}
-                        className="text-xs font-bold text-stone-500 hover:underline"
-                      >
-                        Edit
-                      </Link>
-                    </div>
+                    <button
+                      onClick={() => setSelectedApp(app)}
+                      className="cursor-pointer text-xs font-bold text-navy-700 hover:underline"
+                    >
+                      Review →
+                    </button>
                   </td>
                 </tr>
               ))}
