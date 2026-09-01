@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import Link from "next/link";
 import ScholarshipForm, { StudentData } from "@/components/ScholarshipForm";
 
 type Application = {
@@ -78,9 +77,6 @@ export default function PrintStudentPage() {
               ))}
             </select>
           )}
-          <Link href={`/students/${id}`} className="btn-secondary">
-            ← Back
-          </Link>
           <button onClick={() => window.print()} className="btn-primary px-6">
             🖨️ Print
           </button>

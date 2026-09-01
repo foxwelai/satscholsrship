@@ -36,6 +36,10 @@ export default function EditApplicationPage() {
   const [saved, setSaved] = useState(false);
   const [pending, setPending] = useState<ReviewApplication[]>([]);
   const [reviewOpen, setReviewOpen] = useState(false);
+  // Bumped after every save so the form remounts from the refetched record —
+  // what you see afterwards is what the server actually stored, not what was
+  // typed into it.
+  const [formVersion, setFormVersion] = useState(0);
 
   useEffect(() => {
     fetch(`/api/students/${id}`)
@@ -65,6 +69,7 @@ export default function EditApplicationPage() {
     setTimeout(() => setSaved(false), 3000);
     const fresh = await fetch(`/api/students/${id}`).then((r) => r.json());
     setStudent(fresh);
+    setFormVersion((v) => v + 1);
     return null;
   }
 
@@ -121,7 +126,8 @@ export default function EditApplicationPage() {
           </h1>
           <p className="page-subtitle">
             <span className="font-mono font-semibold text-maroon-800">{student.student_id}</span> ·{" "}
-            {student.pete_name} Pete
+            {student.pete_name}{" "}
+            Pete
           </p>
         </div>
         <div className="flex gap-2">
@@ -130,9 +136,6 @@ export default function EditApplicationPage() {
               ✓ Approve / Reject
             </button>
           )}
-          <Link href={`/students/${id}`} className="btn-secondary px-3.5 py-2 text-xs">
-            ← Back to Student
-          </Link>
         </div>
       </div>
 
@@ -165,6 +168,7 @@ export default function EditApplicationPage() {
       )}
 
       <ApplicationForm
+        key={formVersion}
         mode="edit"
         lockFinancialYear
         initial={{

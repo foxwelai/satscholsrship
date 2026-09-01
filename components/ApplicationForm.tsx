@@ -73,7 +73,10 @@ export default function ApplicationForm({
     try {
       const res = await fetch(`/api/pincode?pin=${pin}`);
       const data = await res.json();
-      if (data.location) setValues((prev) => ({ ...prev, location: data.location }));
+      // Ignore a slow reply for a pincode the user has already typed past.
+      if (data.location) {
+        setValues((prev) => (prev.pincode === pin ? { ...prev, location: data.location } : prev));
+      }
     } catch {
       // lookup is a convenience only — the form still submits without it
     }
@@ -224,16 +227,25 @@ export default function ApplicationForm({
               value={values.pincode}
               onChange={(e) => {
                 const pin = e.target.value.replace(/\D/g, "").slice(0, 6);
-                set("pincode")(pin);
+                // Drop the old place the moment the pincode changes, so a
+                // failed lookup cannot leave the previous one attached to it.
+                setValues((prev) => ({ ...prev, pincode: pin, location: "" }));
                 if (pin.length === 6) fetchLocation(pin);
               }}
-              placeholder="e.g. 671310 — auto-fetches the place"
+              placeholder="e.g. 671310 — auto-fills the place"
               maxLength={6}
               className="input"
             />
-            {values.location && (
-              <p className="mt-1.5 text-xs font-semibold text-emerald-700">✓ {values.location}</p>
-            )}
+          </label>
+
+          <label className="block">
+            <span className="label">Place / Location</span>
+            <input
+              value={values.location}
+              onChange={(e) => set("location")(e.target.value)}
+              placeholder="Auto-filled from the pincode — edit if it is wrong"
+              className="input"
+            />
           </label>
 
           <label className="block">

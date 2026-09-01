@@ -2,7 +2,6 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
 import {
   CATEGORIES,
   CLASSES,
@@ -367,11 +366,6 @@ function RenewStudentInner() {
 
       ) : null}
 
-      <div className="mt-6 text-center">
-        <Link href="/students" className="text-sm font-semibold text-maroon-700 hover:underline">
-          ← Back to Search Students
-        </Link>
-      </div>
     </div>
   );
 }

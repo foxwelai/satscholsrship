@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { nextFinancialYear } from "@/lib/constants";
 
 export default function SettingsPage() {
@@ -93,12 +94,53 @@ export default function SettingsPage() {
     );
   }
 
+  const adminLinks = [
+    {
+      href: "/admin/users",
+      icon: "🔐",
+      title: "User Access",
+      desc: "Add admins, set their role and pete, reset passwords",
+    },
+    {
+      href: "/admin/rates",
+      icon: "💰",
+      title: "Scholarship Rates",
+      desc: "Amount sanctioned per category for each financial year",
+    },
+    {
+      href: "/petes",
+      icon: "🛕",
+      title: "Petes",
+      desc: "Manage petes and the ID prefix each one issues",
+    },
+  ];
+
   return (
     <div>
       <h1 className="page-title">Settings</h1>
       <p className="page-subtitle mb-6">
         The portal only works with the current academic year — old years can never be selected.
       </p>
+
+      <div className="mb-8 grid max-w-4xl gap-4 sm:grid-cols-3">
+        {adminLinks.map((a) => (
+          <Link
+            key={a.href}
+            href={a.href}
+            className="card group relative overflow-hidden p-5 transition hover:-translate-y-0.5 hover:shadow-[0_12px_32px_-12px_rgba(61,10,11,0.25)]"
+          >
+            <span className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-maroon-700 via-gold-400 to-maroon-700 opacity-0 transition group-hover:opacity-100" />
+            <span className="grid h-11 w-11 place-items-center rounded-xl bg-maroon-50 text-xl ring-1 ring-maroon-100">
+              {a.icon}
+            </span>
+            <p className="mt-3 font-display text-[15px] tracking-wide text-maroon-900">
+              {a.title}
+              <span className="ml-1 inline-block transition group-hover:translate-x-1">→</span>
+            </p>
+            <p className="mt-1 text-[13px] leading-relaxed text-stone-500">{a.desc}</p>
+          </Link>
+        ))}
+      </div>
 
       <div className="grid max-w-4xl gap-6 md:grid-cols-2">
         <div className="card overflow-hidden">
