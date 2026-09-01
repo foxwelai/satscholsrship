@@ -232,7 +232,10 @@ export default function StudentForm({
     try {
       const res = await fetch(`/api/pincode?pin=${pin}`);
       const data = await res.json();
-      if (data.location) setValues((prev) => ({ ...prev, location: data.location }));
+      // Ignore a slow reply for a pincode the user has already typed past.
+      if (data.location) {
+        setValues((prev) => (prev.pincode === pin ? { ...prev, location: data.location } : prev));
+      }
     } catch {
       // pincode lookup is optional — form still submits without it
     }
@@ -355,26 +358,29 @@ export default function StudentForm({
           required
           placeholder="e.g. Bolandugutturoad, Hosabettu, Manjeshwar"
         />
-        <div>
-          <label className="block">
-            <span className="label">Pincode</span>
-            <input
-              type="text"
-              value={values.pincode}
-              onChange={(e) => {
-                const pin = e.target.value.replace(/\D/g, "").slice(0, 6);
-                set("pincode")(pin);
-                if (pin.length === 6) lookupPincode(pin);
-              }}
-              placeholder="6-digit pincode — auto-fills location"
-              maxLength={6}
-              className="input"
-            />
-          </label>
-          {values.location && (
-            <p className="mt-1.5 text-xs font-semibold text-emerald-700">✓ {values.location}</p>
-          )}
-        </div>
+        <label className="block">
+          <span className="label">Pincode</span>
+          <input
+            type="text"
+            value={values.pincode}
+            onChange={(e) => {
+              const pin = e.target.value.replace(/\D/g, "").slice(0, 6);
+              // Drop the old place the moment the pincode changes, so a failed
+              // lookup cannot leave the previous one attached to it.
+              setValues((prev) => ({ ...prev, pincode: pin, location: "" }));
+              if (pin.length === 6) lookupPincode(pin);
+            }}
+            placeholder="6-digit pincode — auto-fills location"
+            maxLength={6}
+            className="input"
+          />
+        </label>
+        <Input
+          label="Place / Location"
+          value={values.location}
+          onChange={set("location")}
+          placeholder="Auto-filled from the pincode — edit if it is wrong"
+        />
         <Input label="Mother's Name" value={values.mother_name} onChange={set("mother_name")} />
         <Input label="Family Annual Income (₹)" value={values.family_income} onChange={set("family_income")} />
         <Input label="Contact Phone / Mobile No." value={values.contact_phone} onChange={set("contact_phone")} />

@@ -36,6 +36,10 @@ export default function EditApplicationPage() {
   const [saved, setSaved] = useState(false);
   const [pending, setPending] = useState<ReviewApplication[]>([]);
   const [reviewOpen, setReviewOpen] = useState(false);
+  // Bumped after every save so the form remounts from the refetched record —
+  // what you see afterwards is what the server actually stored, not what was
+  // typed into it.
+  const [formVersion, setFormVersion] = useState(0);
 
   useEffect(() => {
     fetch(`/api/students/${id}`)
@@ -65,6 +69,7 @@ export default function EditApplicationPage() {
     setTimeout(() => setSaved(false), 3000);
     const fresh = await fetch(`/api/students/${id}`).then((r) => r.json());
     setStudent(fresh);
+    setFormVersion((v) => v + 1);
     return null;
   }
 
@@ -165,6 +170,7 @@ export default function EditApplicationPage() {
       )}
 
       <ApplicationForm
+        key={formVersion}
         mode="edit"
         lockFinancialYear
         initial={{

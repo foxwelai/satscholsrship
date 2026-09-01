@@ -4,7 +4,6 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import ApplicationForm, { ApplicationValues } from "@/components/ApplicationForm";
-import { nextClass } from "@/lib/constants";
 
 type StudentSummary = {
   id: number;
@@ -73,14 +72,22 @@ function NewApplicationYearInner() {
     );
   }
 
-  const latest = [...student.applications].sort((a, b) => (a.financialYear < b.financialYear ? 1 : -1))[0];
+  // The renew wizard hands over the year and class it already picked. Opening
+  // this page directly is a brand-new application, so nothing is carried over
+  // from last year — a blank form, not a copy of the previous one.
+  const isRenewal = ["year", "category", "class", "course"].some((k) => searchParams.has(k));
+  const latest = isRenewal
+    ? [...student.applications].sort((a, b) => (a.financialYear < b.financialYear ? 1 : -1))[0]
+    : undefined;
   // Either the renew wizard passed the (settings-gated) year, or leave it
   // empty and ApplicationForm defaults to the current academic year.
   const suggestedYear = searchParams.get("year") ?? "";
 
   return (
     <div>
-      <h1 className="page-title">Renew — {student.name}</h1>
+      <h1 className="page-title">
+        {isRenewal ? "Renew" : "New Application"} — {student.name}
+      </h1>
       <p className="page-subtitle mb-6">
         <span className="font-mono font-semibold text-maroon-800">{student.student_id}</span> ·{" "}
         {student.pete_name} Pete. Add this year&apos;s class and details — the application will go
@@ -90,13 +97,9 @@ function NewApplicationYearInner() {
         mode="create"
         initial={{
           financial_year: suggestedYear,
-          category: searchParams.get("category") ?? latest?.category ?? "",
-          // Default to the NEXT year of the same class (1st Year → 2nd Year)
-          // unless the renew wizard already chose one.
-          current_class:
-            searchParams.get("class") ??
-            (latest ? nextClass(latest.category, latest.currentClass) : ""),
-          course_name: searchParams.get("course") || (latest?.courseName ?? ""),
+          category: searchParams.get("category") ?? "",
+          current_class: searchParams.get("class") ?? "",
+          course_name: searchParams.get("course") ?? "",
           pincode: latest?.pincode ?? "",
           location: latest?.location ?? "",
         }}
