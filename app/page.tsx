@@ -118,6 +118,12 @@ export default async function Dashboard() {
       title: "Reports",
       desc: "Selection by pete, bank and class — with CSV export and print",
     },
+    {
+      href: "/form",
+      icon: "🖨️",
+      title: "Blank Form",
+      desc: "Print an empty application to fill in by hand at the counter",
+    },
   ];
 
   return (
@@ -148,7 +154,7 @@ export default async function Dashboard() {
         ))}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {actions.map((a) => (
           <Link
             key={a.href}
@@ -173,9 +179,19 @@ export default async function Dashboard() {
       </div>
 
       <div>
-        <div className="mb-3 flex items-center gap-2.5">
-          <span className="accent-bar" />
-          <h2 className="font-display text-lg tracking-wide text-maroon-900">Recent Applications</h2>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <span className="accent-bar" />
+            <h2 className="font-display text-lg tracking-wide text-maroon-900">
+              Recent Applications
+            </h2>
+          </div>
+          <Link
+            href="/applications"
+            className="text-sm font-bold text-navy-700 hover:underline"
+          >
+            See all →
+          </Link>
         </div>
         {recent.length === 0 ? (
           <div className="card p-10 text-center">
