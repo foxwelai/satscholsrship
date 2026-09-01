@@ -18,6 +18,10 @@ type AppFields = {
 export default function NewStudentPage() {
   const session = useSession();
   const [created, setCreated] = useState<{ id: number; student_id: string } | null>(null);
+  // Bumped when starting another application so StudentForm remounts. Its
+  // values are initialised once, so without this the student just registered
+  // would still be sitting in the fields.
+  const [formKey, setFormKey] = useState(0);
   const [appFields, setAppFields] = useState<AppFields>({
     financial_year: currentFinancialYear(),
     category: "",
@@ -55,6 +59,21 @@ export default function NewStudentPage() {
     return null;
   }
 
+  // Clear everything except the financial year, which is fixed by Settings.
+  function startAnother() {
+    setAppFields((prev) => ({
+      financial_year: prev.financial_year,
+      category: "",
+      current_class: "",
+      course_name: "",
+      prev_year_marks: "",
+      annual_fee: "",
+    }));
+    setFormKey((k) => k + 1);
+    setCreated(null);
+    window.scrollTo({ top: 0 });
+  }
+
   const classOptions = appFields.category ? CLASSES[appFields.category] ?? [] : [];
   const courseOptions = appFields.category ? COURSE_OPTIONS_BY_CATEGORY[appFields.category] ?? [] : [];
   const needsCourse = courseOptions.length > 0;
@@ -79,7 +98,7 @@ export default function NewStudentPage() {
             <Link href={`/students/${created.id}/print`} className="btn-navy">
               🖨️ Print Filled Form
             </Link>
-            <button onClick={() => setCreated(null)} className="btn-secondary">
+            <button onClick={startAnother} className="btn-secondary">
               + New Application
             </button>
           </div>
@@ -96,7 +115,12 @@ export default function NewStudentPage() {
         <span className="font-mono font-semibold text-maroon-800">MJS/26/0001</span>. Aadhar number
         is required and is used to find this student in future years.
       </p>
-      <StudentForm submitLabel="Register Student" onSubmit={handleSubmit} session={session}>
+      <StudentForm
+        key={formKey}
+        submitLabel="Register Student"
+        onSubmit={handleSubmit}
+        session={session}
+      >
         <section className="card overflow-hidden">
           <div className="card-header">
             <span className="accent-bar" />
