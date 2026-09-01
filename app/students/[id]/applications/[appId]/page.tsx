@@ -126,7 +126,8 @@ export default function EditApplicationPage() {
           </h1>
           <p className="page-subtitle">
             <span className="font-mono font-semibold text-maroon-800">{student.student_id}</span> ·{" "}
-            {student.pete_name} Pete
+            {student.pete_name}{" "}
+            Pete
           </p>
         </div>
         <div className="flex gap-2">
@@ -135,9 +136,6 @@ export default function EditApplicationPage() {
               ✓ Approve / Reject
             </button>
           )}
-          <Link href={`/students/${id}`} className="btn-secondary px-3.5 py-2 text-xs">
-            ← Back to Student
-          </Link>
         </div>
       </div>
 

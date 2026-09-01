@@ -90,8 +90,9 @@ function NewApplicationYearInner() {
       </h1>
       <p className="page-subtitle mb-6">
         <span className="font-mono font-semibold text-maroon-800">{student.student_id}</span> ·{" "}
-        {student.pete_name} Pete. Add this year&apos;s class and details — the application will go
-        to the super admin for approval.
+        {student.pete_name}{" "}
+        Pete. Add this year&apos;s class and details — the application will go to the super admin
+        for approval.
       </p>
       <ApplicationForm
         mode="create"

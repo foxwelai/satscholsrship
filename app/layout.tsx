@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { petes } from "@/lib/schema";
 import LogoutButton from "@/components/LogoutButton";
 import NavLinks, { NavItem } from "@/components/NavLinks";
+import BackLink from "@/components/BackLink";
 import InstallButton from "@/components/InstallButton";
 import "./globals.css";
 
@@ -104,6 +105,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           </header>
         )}
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 print:max-w-none print:p-0">
+          {session && <BackLink />}
           {children}
         </main>
         {session && (

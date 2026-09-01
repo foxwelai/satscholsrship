@@ -127,9 +127,6 @@ export default async function AllApplicationsPage({
             {counts?.amount ? ` · ₹${counts.amount.toLocaleString("en-IN")} approved` : ""}
           </p>
         </div>
-        <Link href="/" className="btn-secondary px-3.5 py-2 text-xs">
-          ← Dashboard
-        </Link>
       </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
