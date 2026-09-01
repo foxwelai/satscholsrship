@@ -57,6 +57,7 @@ function Input({
   type = "text",
   placeholder,
   maxLength,
+  inputMode,
 }: {
   label: string;
   value: string;
@@ -65,6 +66,7 @@ function Input({
   type?: string;
   placeholder?: string;
   maxLength?: number;
+  inputMode?: "text" | "numeric" | "tel" | "decimal";
 }) {
   return (
     <label className="block">
@@ -77,6 +79,7 @@ function Input({
         required={required}
         placeholder={placeholder}
         maxLength={maxLength}
+        inputMode={inputMode}
         onChange={(e) => onChange(e.target.value)}
         className="input"
       />
@@ -387,7 +390,14 @@ export default function StudentForm({
       </Section>
 
       <Section title="C) Student's Bank Details">
-        <Input label="Bank Account Number" value={values.bank_account} onChange={set("bank_account")} />
+        <Input
+          label="Bank Account Number"
+          value={values.bank_account}
+          onChange={(v) => set("bank_account")(v.replace(/\D/g, ""))}
+          inputMode="numeric"
+          maxLength={18}
+          placeholder="Digits only — e.g. 020422010002054"
+        />
         <div>
           <Input
             label="Bank IFSC Code (auto-fills bank & branch)"
