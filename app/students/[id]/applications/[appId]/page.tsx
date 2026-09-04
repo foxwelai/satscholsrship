@@ -141,10 +141,16 @@ export default function EditApplicationPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(studentPayload),
     });
+    const studentSaved = await studentRes.json().catch(() => ({}));
     if (!studentRes.ok) {
-      const data = await studentRes.json().catch(() => ({}));
-      return data.error ?? "Failed to save the student's details";
+      return studentSaved.error ?? "Failed to save the student's details";
     }
+    // Moving a student to another pete reissues their number there, so say so
+    // rather than letting the ID quietly change under them.
+    const reissuedId =
+      studentSaved.student_id && studentSaved.student_id !== student?.student_id
+        ? (studentSaved.student_id as string)
+        : null;
 
     const appRes = await fetch(`/api/applications/${appId}`, {
       method: "PUT",
@@ -160,7 +166,13 @@ export default function EditApplicationPage() {
     }
 
     await reload(true);
-    announce(approveAndClose ? "✓ Saved, approved and closed" : "✓ All changes saved");
+    announce(
+      reissuedId
+        ? `✓ All changes saved — moved pete, new Student ID ${reissuedId}`
+        : approveAndClose
+          ? "✓ Saved, approved and closed"
+          : "✓ All changes saved"
+    );
     return null;
   }
 

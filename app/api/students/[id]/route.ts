@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { and, desc, eq, ne } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { db, generateStudentId, isUniqueViolation } from "@/lib/db";
 import { students, petes, applications } from "@/lib/schema";
 import { getSession } from "@/lib/auth";
 
@@ -97,11 +97,53 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   for (const [key, col] of Object.entries(EDITABLE_FIELDS)) {
     if (key in body) updates[col] = body[key] ?? "";
   }
+
+  // Moving a student to another pete reissues their number in that pete's
+  // running series for the year they registered — KRK/26/0089 becomes the next
+  // free KDP/26/…. The number left behind is never handed to anyone else,
+  // because a pete's next ID always continues past the highest it has issued.
+  let studentIdText = existing.student_id;
+  if (body.pete_id !== undefined && body.pete_id !== "") {
+    const nextPeteId = Number(body.pete_id);
+    if (!nextPeteId) {
+      return NextResponse.json({ error: "A valid pete is required" }, { status: 400 });
+    }
+    if (nextPeteId !== existing.pete_id) {
+      if (session.role !== "super_admin") {
+        return NextResponse.json(
+          { error: "Only the super admin can move a student to another pete" },
+          { status: 403 }
+        );
+      }
+      const [pete] = await db
+        .select({ id: petes.id })
+        .from(petes)
+        .where(eq(petes.id, nextPeteId));
+      if (!pete) {
+        return NextResponse.json({ error: "That pete does not exist" }, { status: 400 });
+      }
+      updates.peteId = nextPeteId;
+      studentIdText = await generateStudentId(nextPeteId, existing.reg_year);
+      updates.studentId = studentIdText;
+    }
+  }
+
   if (Object.keys(updates).length <= 1) {
     return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
   }
 
-  await db.update(students).set(updates).where(eq(students.id, studentId));
+  try {
+    await db.update(students).set(updates).where(eq(students.id, studentId));
+  } catch (e) {
+    console.error(e);
+    if (isUniqueViolation(e)) {
+      return NextResponse.json(
+        { error: "That student ID or Aadhar number was just taken — try saving again" },
+        { status: 409 }
+      );
+    }
+    throw e;
+  }
 
   // If pincode or location was submitted, propagate to the latest application
   // so the value is preserved and visible when the student is viewed again.
@@ -122,7 +164,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, student_id: studentIdText });
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
