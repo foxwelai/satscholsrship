@@ -4,6 +4,9 @@ import { db } from "@/lib/db";
 import { applications } from "@/lib/schema";
 import { getSession } from "@/lib/auth";
 
+// Reject an application with a reason. An already-approved application can be
+// rejected too — the approval is withdrawn, so its approval and closing marks
+// are cleared along with it and the scholarship no longer counts as awarded.
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
   if (!session || session.role !== "super_admin") {
@@ -28,6 +31,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       .set({
         status: "Rejected",
         rejectionReason: reason,
+        approvedAt: null,
+        closed: false,
+        closedAt: null,
         updatedAt: new Date(),
       })
       .where(eq(applications.id, appId))

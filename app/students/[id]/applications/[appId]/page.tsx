@@ -1,54 +1,112 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import ApplicationForm, { ApplicationValues } from "@/components/ApplicationForm";
-import ReviewApplicationModal, { ReviewApplication } from "@/components/ReviewApplicationModal";
+import StudentForm, { StudentFormValues } from "@/components/StudentForm";
+import {
+  ApplicationFields,
+  ApplicationValues,
+  applicationValues,
+  validateApplication,
+} from "@/components/ApplicationForm";
+import RejectReasonModal from "@/components/RejectReasonModal";
+import { ReviewApplication } from "@/components/ReviewApplicationModal";
 import { useSession } from "@/lib/useSession";
 
+type Application = {
+  id: number;
+  financialYear: string;
+  category: string;
+  currentClass: string;
+  courseName: string;
+  pincode: string;
+  location: string;
+  prevYearMarks: string;
+  annualFee: string;
+  status: string;
+  closed: boolean;
+  rejectionReason: string;
+  approvedAt: string | null;
+  closedAt: string | null;
+};
+
+// The student's own details, straight from /api/students/[id] — the named
+// fields are what this page reads, the rest is fed to StudentForm as-is.
 type StudentDetail = {
   id: number;
   student_id: string;
   name: string;
   pete_name: string;
-  applications: {
-    id: number;
-    financialYear: string;
-    category: string;
-    currentClass: string;
-    courseName: string;
-    pincode: string;
-    location: string;
-    prevYearMarks: string;
-    annualFee: string;
-    status: string;
-    closed: boolean;
-    rejectionReason: string;
-  }[];
+  applications: Application[];
+  [key: string]: unknown;
 };
+
+function fmtDate(value: string | null) {
+  return value ? new Date(value).toLocaleDateString("en-IN") : "";
+}
 
 export default function EditApplicationPage() {
   const { id, appId } = useParams<{ id: string; appId: string }>();
   const router = useRouter();
   const session = useSession();
   const [student, setStudent] = useState<StudentDetail | null>(null);
-  const [saved, setSaved] = useState(false);
+  const [appValues, setAppValues] = useState<ApplicationValues | null>(null);
+  const [notFound, setNotFound] = useState(false);
+  const [flash, setFlash] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
   const [pending, setPending] = useState<ReviewApplication[]>([]);
-  const [reviewOpen, setReviewOpen] = useState(false);
   // Bumped after every save so the form remounts from the refetched record —
   // what you see afterwards is what the server actually stored, not what was
   // typed into it.
   const [formVersion, setFormVersion] = useState(0);
 
-  useEffect(() => {
-    fetch(`/api/students/${id}`)
-      .then((r) => r.json())
-      .then(setStudent);
-  }, [id]);
+  // `reseed` refills the editors from the freshly loaded record. A decision
+  // (approve, reject, revoke) leaves them alone, so unsaved edits survive it.
+  const apply = useCallback(
+    (data: StudentDetail, reseed: boolean) => {
+      setStudent(data);
+      const app = data.applications?.find((a) => a.id === Number(appId));
+      if (app && reseed) {
+        setAppValues(
+          applicationValues({
+            financial_year: app.financialYear,
+            category: app.category,
+            current_class: app.currentClass,
+            course_name: app.courseName,
+            pincode: app.pincode,
+            location: app.location,
+            prev_year_marks: app.prevYearMarks,
+            annual_fee: app.annualFee,
+          })
+        );
+        setFormVersion((v) => v + 1);
+      }
+    },
+    [appId]
+  );
 
-  // Refetched on every application we land on, so the queue stays accurate as
-  // we walk through it and the modal always gets fresh review data.
+  useEffect(() => {
+    let alive = true;
+    fetch(`/api/students/${id}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("Not found"))))
+      .then((data: StudentDetail) => alive && apply(data, true))
+      .catch(() => alive && setNotFound(true));
+    return () => {
+      alive = false;
+    };
+  }, [id, apply]);
+
+  // Refetch after a save or a decision, from the event handlers only.
+  async function reload(reseed: boolean) {
+    const res = await fetch(`/api/students/${id}`);
+    if (res.ok) apply(await res.json(), reseed);
+  }
+
+  // Refetched on every application we land on, so the "next up" queue stays
+  // accurate as the super admin walks through it.
   useEffect(() => {
     if (session?.role !== "super_admin") return;
     fetch("/api/admin/applications")
@@ -57,36 +115,111 @@ export default function EditApplicationPage() {
       .catch(() => {});
   }, [session, appId]);
 
-  async function handleSave(values: ApplicationValues, action: "save" | "approve_close") {
-    const res = await fetch(`/api/applications/${appId}`, {
+  function announce(message: string) {
+    setFlash(message);
+    setTimeout(() => setFlash(""), 3000);
+  }
+
+  // One save for the whole record: the student's permanent details and this
+  // year's application together, whatever the application's status is.
+  async function saveAll(studentValues: StudentFormValues, intent: string): Promise<string | null> {
+    const approveAndClose = intent === "approve_close";
+    if (!appValues) return "Application not loaded yet";
+    const problem = validateApplication(appValues);
+    if (problem) return problem;
+    setError("");
+
+    // Pincode and place are application columns — they are saved with the
+    // application below. Sent to the students endpoint they would land on the
+    // student's *latest* year, which is not necessarily this one.
+    const studentPayload: StudentFormValues = { ...studentValues };
+    delete studentPayload.pincode;
+    delete studentPayload.location;
+
+    const studentRes = await fetch(`/api/students/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...values, action: action === "approve_close" ? "approve_close" : undefined }),
+      body: JSON.stringify(studentPayload),
     });
-    const data = await res.json();
-    if (!res.ok) return data.error ?? "Failed to save application";
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
-    const fresh = await fetch(`/api/students/${id}`).then((r) => r.json());
-    setStudent(fresh);
-    setFormVersion((v) => v + 1);
+    if (!studentRes.ok) {
+      const data = await studentRes.json().catch(() => ({}));
+      return data.error ?? "Failed to save the student's details";
+    }
+
+    const appRes = await fetch(`/api/applications/${appId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...appValues,
+        action: approveAndClose ? "approve_close" : undefined,
+      }),
+    });
+    if (!appRes.ok) {
+      const data = await appRes.json().catch(() => ({}));
+      return data.error ?? "The student's details were saved, but the application was not";
+    }
+
+    await reload(true);
+    announce(approveAndClose ? "✓ Saved, approved and closed" : "✓ All changes saved");
     return null;
+  }
+
+  // Approve / reject / revoke go through the same super-admin endpoints the
+  // approvals queue uses, so a decision made here behaves identically there.
+  async function decide(kind: "approve" | "revoke"): Promise<void> {
+    const question =
+      kind === "approve"
+        ? "Approve this application?"
+        : "Put this application back into the pending queue for a fresh review?";
+    if (!confirm(question)) return;
+    setBusy(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/applications/${appId}/${kind}`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to update application");
+      await reload(false);
+      announce(kind === "approve" ? "✓ Application approved" : "↩ Rejection revoked");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to update application");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function reject(reason: string): Promise<string | null> {
+    try {
+      const res = await fetch(`/api/admin/applications/${appId}/reject`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason }),
+      });
+      const data = await res.json();
+      if (!res.ok) return data.error ?? "Failed to reject application";
+      setRejecting(false);
+      await reload(false);
+      announce("✗ Application rejected");
+      return null;
+    } catch {
+      return "Failed to reject application";
+    }
   }
 
   async function handleReopen() {
     if (!confirm("Reopen this application for further changes?")) return;
+    setBusy(true);
     await fetch(`/api/applications/${appId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "reopen" }),
     });
-    const fresh = await fetch(`/api/students/${id}`).then((r) => r.json());
-    setStudent(fresh);
+    await reload(false);
+    setBusy(false);
   }
 
   if (session?.role === "staff_admin") {
     return (
-      <div className="card mx-auto max-w-lg overflow-hidden text-center p-10">
+      <div className="card mx-auto max-w-lg overflow-hidden p-10 text-center">
         <p className="text-4xl">🔒</p>
         <h1 className="mt-4 font-display text-xl text-maroon-800">Access restricted</h1>
         <p className="mt-2 text-sm text-stone-500">
@@ -99,93 +232,129 @@ export default function EditApplicationPage() {
     );
   }
 
-  if (!student) return <p className="text-gray-500">Loading…</p>;
+  if (notFound) return <p className="text-red-700">Student not found.</p>;
+  if (!student || !appValues) return <p className="text-gray-500">Loading…</p>;
   const app = student.applications.find((a) => a.id === Number(appId));
   if (!app) return <p className="text-red-700">Application not found.</p>;
 
-  // Where this application sits in the approvals queue. When it is no longer
-  // pending (just decided, or opened from elsewhere) we start from the top.
+  const isSuperAdmin = session?.role === "super_admin";
   const queueIndex = pending.findIndex((p) => p.id === Number(appId));
-  const reviewApp = queueIndex >= 0 ? pending[queueIndex] : null;
   const nextPending = queueIndex >= 0 ? pending[queueIndex + 1] : pending[0];
 
-  function goToNext() {
-    if (nextPending) {
-      router.push(`/students/${nextPending.db_student_id}/applications/${nextPending.id}`);
-    } else {
-      router.push("/admin/applications");
-    }
-  }
+  const statusBadge =
+    app.status === "Approved" ? "badge-green" : app.status === "Rejected" ? "badge-red" : "badge-amber";
+  const statusNote =
+    app.status === "Approved"
+      ? `Approved${app.approvedAt ? ` on ${fmtDate(app.approvedAt)}` : ""} — details can still be corrected below.`
+      : app.status === "Rejected"
+        ? app.rejectionReason || "Rejected."
+        : app.status === "Pending Approval"
+          ? "Awaiting super admin approval."
+          : "This year's scholarship is marked closed.";
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="page-title">
-            {student.name} — {app.financialYear}
-          </h1>
-          <p className="page-subtitle">
-            <span className="font-mono font-semibold text-maroon-800">{student.student_id}</span> ·{" "}
-            {student.pete_name}{" "}
-            Pete
-          </p>
-        </div>
-        <div className="flex gap-2">
-          {reviewApp && (
-            <button onClick={() => setReviewOpen(true)} className="btn-success px-3.5 py-2 text-xs">
-              ✓ Approve / Reject
-            </button>
-          )}
-        </div>
+      <div className="mb-6">
+        <h1 className="page-title">
+          {student.name} — {app.financialYear}
+        </h1>
+        <p className="page-subtitle">
+          <span className="font-mono font-semibold text-maroon-800">{student.student_id}</span> ·{" "}
+          {student.pete_name} Pete · editing every detail of this year&apos;s application
+        </p>
       </div>
 
-      {saved && <div className="alert-success mb-4">✓ Application updated</div>}
+      {flash && <div className="alert-success mb-4">{flash}</div>}
+      {error && <div className="alert-error mb-4">{error}</div>}
 
-      {app.status === "Rejected" && app.rejectionReason && (
-        <div className="alert-error mb-4">
-          ✗ This application was rejected — <span className="font-normal">{app.rejectionReason}</span>
-        </div>
-      )}
-
-      {app.status === "Pending Approval" && (
-        <div className="mb-4 rounded-xl border border-gold-300 bg-gold-100/60 px-4 py-3 text-sm font-semibold text-gold-700">
-          ⏳ Awaiting super admin approval.
-        </div>
-      )}
-
-      {app.closed && (
-        <div className="mb-4 flex items-center justify-between rounded-xl border border-stone-300 bg-stone-100/80 px-4 py-3">
-          <p className="text-sm font-semibold text-stone-600">
-            🔒 This year&apos;s scholarship is closed ({app.status}).
-          </p>
-          <button
-            onClick={handleReopen}
-            className="cursor-pointer text-sm font-bold text-navy-700 hover:underline"
+      <div className="card mb-5 flex flex-wrap items-center justify-between gap-3 p-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className={statusBadge}>{app.status}</span>
+          {app.closed && (
+            <span className="rounded-lg bg-stone-100 px-2.5 py-1 text-xs font-bold text-stone-600">
+              🔒 Closed
+            </span>
+          )}
+          <p
+            className={`text-sm ${app.status === "Rejected" ? "font-medium text-red-600" : "text-stone-500"}`}
           >
-            Reopen
-          </button>
+            {statusNote}
+          </p>
         </div>
-      )}
+        {isSuperAdmin && (
+          <div className="flex flex-wrap gap-2">
+            {app.status !== "Approved" && (
+              <button
+                onClick={() => decide("approve")}
+                disabled={busy}
+                className="btn-success px-3.5 py-2 text-xs"
+              >
+                ✓ Approve
+              </button>
+            )}
+            {app.status !== "Rejected" && (
+              <button
+                onClick={() => setRejecting(true)}
+                disabled={busy}
+                className="btn-danger-outline px-3.5 py-2 text-xs"
+                title="Reject this application with a reason — an approved one is withdrawn"
+              >
+                ✗ Reject{app.status === "Approved" ? " (withdraw approval)" : ""}
+              </button>
+            )}
+            {app.status === "Rejected" && (
+              <button
+                onClick={() => decide("revoke")}
+                disabled={busy}
+                className="btn-secondary px-3.5 py-2 text-xs"
+                title="Undo the rejection and send it back to the pending queue"
+              >
+                ↩ Revoke rejection
+              </button>
+            )}
+            {app.closed && (
+              <button
+                onClick={handleReopen}
+                disabled={busy}
+                className="btn-secondary px-3.5 py-2 text-xs"
+              >
+                Reopen
+              </button>
+            )}
+          </div>
+        )}
+      </div>
 
-      <ApplicationForm
+      <StudentForm
         key={formVersion}
-        mode="edit"
-        lockFinancialYear
-        initial={{
-          financial_year: app.financialYear,
-          category: app.category,
-          current_class: app.currentClass,
-          course_name: app.courseName,
-          pincode: app.pincode,
-          location: app.location,
-          prev_year_marks: app.prevYearMarks,
-          annual_fee: app.annualFee,
-          status: app.status,
-        }}
-        onSave={handleSave}
-      />
+        initial={student}
+        session={session}
+        hideLocation
+        submitLabel="Save All Changes"
+        onSubmit={saveAll}
+        actions={(saving) =>
+          isSuperAdmin && !app.closed ? (
+            <button
+              type="submit"
+              value="approve_close"
+              disabled={saving}
+              className="btn-success px-7 py-3.5 text-base"
+              title="Save these changes, then mark this year's scholarship Approved and Closed"
+            >
+              ✓ Save, Approve &amp; Close
+            </button>
+          ) : null
+        }
+      >
+        <ApplicationFields
+          values={appValues}
+          onChange={(patch) => setAppValues((prev) => ({ ...prev!, ...patch }))}
+          lockFinancialYear
+          title={`Scholarship Application — ${app.financialYear}`}
+        />
+      </StudentForm>
 
-      {session?.role === "super_admin" && pending.length > 0 && (
+      {isSuperAdmin && pending.length > 0 && (
         <div className="card mt-4 flex flex-wrap items-center justify-between gap-3 p-4">
           <p className="text-sm text-stone-500">
             {pending.length} application{pending.length !== 1 ? "s" : ""} pending approval
@@ -204,7 +373,14 @@ export default function EditApplicationPage() {
               Approvals queue
             </Link>
             {nextPending && (
-              <button onClick={goToNext} className="btn-navy px-3.5 py-2 text-xs">
+              <button
+                onClick={() =>
+                  router.push(
+                    `/students/${nextPending.db_student_id}/applications/${nextPending.id}`
+                  )
+                }
+                className="btn-navy px-3.5 py-2 text-xs"
+              >
                 Next application →
               </button>
             )}
@@ -212,16 +388,18 @@ export default function EditApplicationPage() {
         </div>
       )}
 
-      {reviewOpen && reviewApp && (
-        <ReviewApplicationModal
-          app={reviewApp}
-          onClose={() => setReviewOpen(false)}
-          // Decided — move straight on to the next one in the queue without
-          // leaving the editor.
-          onDecided={() => {
-            setReviewOpen(false);
-            goToNext();
-          }}
+      {rejecting && (
+        <RejectReasonModal
+          title={`Reject ${student.student_id} — ${app.financialYear}`}
+          description={
+            app.status === "Approved"
+              ? "This application is currently approved. Rejecting it withdraws the approval, clears the closing mark, and records the reason below against the application."
+              : "The reason is recorded against the application and shown wherever it is listed."
+          }
+          initialReason={app.rejectionReason}
+          confirmLabel={app.status === "Approved" ? "✗ Withdraw & Reject" : "✗ Reject application"}
+          onCancel={() => setRejecting(false)}
+          onConfirm={reject}
         />
       )}
     </div>

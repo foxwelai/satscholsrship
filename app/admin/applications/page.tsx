@@ -55,7 +55,6 @@ export default function AdminApplicationsPage() {
   const [perPage, setPerPage] = useState(25);
   const [selectedApp, setSelectedApp] = useState<AdminApplication | null>(null);
   const [lightbox, setLightbox] = useState<string | null>(null);
-  const [busyId, setBusyId] = useState<number | null>(null);
   const [error, setError] = useState("");
   // Bumped to re-run the fetch below after a decision changes the data.
   const [reloadKey, setReloadKey] = useState(0);
@@ -102,27 +101,6 @@ export default function AdminApplicationsPage() {
         <p className="mt-4 text-sm text-stone-600">Only super admins can approve applications.</p>
       </div>
     );
-  }
-
-  // Approving or revoking a rejected application, straight from the list.
-  async function decideRejected(app: AdminApplication, kind: "approve" | "revoke") {
-    const question =
-      kind === "approve"
-        ? `Approve ${app.student_id} (${app.name}) after all? The rejection reason will be cleared.`
-        : `Put ${app.student_id} (${app.name}) back into the pending queue for a fresh review?`;
-    if (!confirm(question)) return;
-    setBusyId(app.id);
-    setError("");
-    try {
-      const res = await fetch(`/api/admin/applications/${app.id}/${kind}`, { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to update application");
-      reload();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to update application");
-    } finally {
-      setBusyId(null);
-    }
   }
 
   function switchTab(next: TabKey) {
@@ -199,7 +177,7 @@ export default function AdminApplicationsPage() {
                 <th>FY</th>
                 <th className="text-right!">Amount (₹)</th>
                 <th>{lastColumn}</th>
-                {tab !== "Approved" && <th></th>}
+                {tab === "Pending Approval" && <th></th>}
               </tr>
             </thead>
             <tbody>
@@ -223,9 +201,12 @@ export default function AdminApplicationsPage() {
                     )}
                   </td>
                   <td>
+                    {/* The ID opens the student's read-only record; Edit from
+                        there is where changes and decisions are made. */}
                     <Link
                       href={`/students/${app.db_student_id}`}
                       className="font-mono text-[13px] font-bold text-maroon-700 hover:underline"
+                      title="Open this student's record"
                     >
                       {app.student_id}
                     </Link>
@@ -258,28 +239,6 @@ export default function AdminApplicationsPage() {
                       >
                         Review →
                       </button>
-                    </td>
-                  )}
-                  {tab === "Rejected" && (
-                    <td className="text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-3">
-                        <button
-                          onClick={() => decideRejected(app, "approve")}
-                          disabled={busyId === app.id}
-                          className="cursor-pointer text-xs font-bold text-emerald-700 hover:underline disabled:opacity-50"
-                          title="Approve this application despite the earlier rejection"
-                        >
-                          ✓ Approve
-                        </button>
-                        <button
-                          onClick={() => decideRejected(app, "revoke")}
-                          disabled={busyId === app.id}
-                          className="cursor-pointer text-xs font-bold text-navy-700 hover:underline disabled:opacity-50"
-                          title="Undo the rejection and send it back to the pending queue"
-                        >
-                          ↩ Revoke
-                        </button>
-                      </div>
                     </td>
                   )}
                 </tr>
