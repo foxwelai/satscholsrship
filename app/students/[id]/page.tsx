@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import StudentForm, { StudentFormValues } from "@/components/StudentForm";
-import ReviewApplicationModal, { ReviewApplication } from "@/components/ReviewApplicationModal";
+import ImageLightbox from "@/components/ImageLightbox";
 import { useSession } from "@/lib/useSession";
 
 type Application = {
@@ -24,61 +23,81 @@ type Application = {
   closedAt: string | null;
 };
 
-type StudentDetail = StudentFormValues & {
+type StudentDetail = {
   id: number;
   student_id: string;
   pete_id: number;
   pete_name: string;
   reg_year: number;
+  name: string;
+  mobile: string;
+  dob: string;
+  aadhar: string;
+  school_name: string;
+  father_name: string;
+  father_occupation: string;
+  address: string;
+  mother_name: string;
+  family_income: string;
+  contact_phone: string;
+  bank_account: string;
+  bank_name: string;
+  bank_branch: string;
+  ifsc: string;
+  photo_path: string;
+  passbook_path: string;
   applications: Application[];
 };
+
+function fmtDob(value: string) {
+  if (!value) return "";
+  const d = new Date(value);
+  return isNaN(d.getTime()) ? value : d.toLocaleDateString("en-IN");
+}
+
+function Field({ label, value }: { label: string; value?: string }) {
+  return (
+    <div>
+      <p className="text-[11px] font-bold tracking-wider text-stone-400 uppercase">{label}</p>
+      <p className="mt-0.5 text-sm font-medium break-words text-stone-800">{value || "—"}</p>
+    </div>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="card overflow-hidden">
+      <div className="card-header">
+        <span className="accent-bar" />
+        <h2 className="card-title">{title}</h2>
+      </div>
+      <div className="grid gap-4 p-5 sm:grid-cols-2 md:grid-cols-3">{children}</div>
+    </section>
+  );
+}
 
 export default function StudentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const session = useSession();
   const [student, setStudent] = useState<StudentDetail | null>(null);
-  const [saved, setSaved] = useState(false);
   const [notFound, setNotFound] = useState(false);
-  const [pending, setPending] = useState<ReviewApplication[]>([]);
-  const [reviewApp, setReviewApp] = useState<ReviewApplication | null>(null);
+  const [lightbox, setLightbox] = useState<string | null>(null);
 
   useEffect(() => {
+    let alive = true;
     fetch(`/api/students/${id}`)
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then(setStudent)
-      .catch(() => setNotFound(true));
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("Not found"))))
+      .then((data) => alive && setStudent(data))
+      .catch(() => alive && setNotFound(true));
+    return () => {
+      alive = false;
+    };
   }, [id]);
 
-  // The approvals queue doubles as the review data source: it already carries
-  // the photo and the rate-derived scholarship amount the modal shows.
-  useEffect(() => {
-    if (session?.role !== "super_admin") return;
-    fetch("/api/admin/applications")
-      .then((r) => r.json())
-      .then((data) => setPending(data.applications || []))
-      .catch(() => {});
-  }, [session, id]);
-
-  async function handleSubmit(values: StudentFormValues): Promise<string | null> {
-    const res = await fetch(`/api/students/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(values),
-    });
-    if (!res.ok) {
-      const data = await res.json();
-      return data.error ?? "Failed to save";
-    }
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
-    const fresh = await fetch(`/api/students/${id}`).then((r) => r.json());
-    setStudent(fresh);
-    return null;
-  }
-
   async function handleDelete() {
-    if (!confirm(`Delete student ${student?.student_id} (${student?.name})? This cannot be undone.`)) return;
+    if (!confirm(`Delete student ${student?.student_id} (${student?.name})? This cannot be undone.`))
+      return;
     const res = await fetch(`/api/students/${id}`, { method: "DELETE" });
     if (!res.ok) {
       const data = await res.json();
@@ -91,7 +110,13 @@ export default function StudentDetailPage() {
   if (notFound) return <p className="text-red-700">Student not found.</p>;
   if (!student) return <p className="text-gray-500">Loading…</p>;
 
-  const pendingById = new Map(pending.map((p) => [p.id, p]));
+  const canEdit = session?.role !== "staff_admin";
+  // Every correction goes through an application, so "edit" from here means
+  // opening the year you want to fix. The newest one is the usual choice.
+  const latestApp = [...student.applications].sort((a, b) =>
+    a.financialYear < b.financialYear ? 1 : -1
+  )[0];
+  const isPdf = student.passbook_path.endsWith(".pdf");
 
   return (
     <div>
@@ -106,6 +131,11 @@ export default function StudentDetailPage() {
           <p className="page-subtitle">🛕 {student.pete_name} Pete</p>
         </div>
         <div className="flex gap-2">
+          {canEdit && latestApp && (
+            <Link href={`/students/${id}/applications/${latestApp.id}`} className="btn-primary">
+              ✎ Edit Record
+            </Link>
+          )}
           <Link href={`/students/${id}/print`} className="btn-navy">
             🖨️ Print Application
           </Link>
@@ -116,8 +146,6 @@ export default function StudentDetailPage() {
           )}
         </div>
       </div>
-
-      {saved && <div className="alert-success mb-4">✓ Changes saved</div>}
 
       <div className="card mb-6 overflow-hidden">
         <div className="card-header justify-between">
@@ -152,7 +180,10 @@ export default function StudentDetailPage() {
               </thead>
               <tbody>
                 {student.applications.map((a) => (
-                  <tr key={a.id} className="border-b border-cream-200/70 last:border-0 hover:bg-gold-100/30">
+                  <tr
+                    key={a.id}
+                    className="border-b border-cream-200/70 last:border-0 hover:bg-gold-100/30"
+                  >
                     <td className="px-5 py-2.5 font-semibold text-maroon-900">{a.financialYear}</td>
                     <td className="py-2.5 pr-4">{a.currentClass}</td>
                     <td className="py-2.5 pr-4">{a.category}</td>
@@ -163,7 +194,6 @@ export default function StudentDetailPage() {
                     <td className="py-2.5 pr-4">{a.annualFee}</td>
                     <td className="py-2.5 pr-4">
                       <span
-                        title={a.status === "Rejected" && a.rejectionReason ? `Reason: ${a.rejectionReason}` : undefined}
                         className={
                           a.status === "Approved"
                             ? "badge-green"
@@ -183,25 +213,16 @@ export default function StudentDetailPage() {
                     <td className="py-2.5 pr-4 text-xs font-semibold text-stone-500">
                       {a.closed ? "✓ Closed" : "—"}
                     </td>
-                    <td className="py-2.5 pr-5">
-                      <div className="flex items-center justify-end gap-3">
-                        {pendingById.has(a.id) && (
-                          <button
-                            onClick={() => setReviewApp(pendingById.get(a.id)!)}
-                            className="cursor-pointer text-xs font-bold text-emerald-700 hover:underline"
-                          >
-                            Approve / Reject
-                          </button>
-                        )}
-                        {session?.role !== "staff_admin" && (
-                          <Link
-                            href={`/students/${id}/applications/${a.id}`}
-                            className="text-xs font-bold text-navy-700 hover:underline"
-                          >
-                            Edit →
-                          </Link>
-                        )}
-                      </div>
+                    <td className="py-2.5 pr-5 text-right">
+                      {canEdit && (
+                        <Link
+                          href={`/students/${id}/applications/${a.id}`}
+                          className="text-xs font-bold text-navy-700 hover:underline"
+                          title="Edit this year — and every detail of the student's record"
+                        >
+                          Edit →
+                        </Link>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -211,32 +232,97 @@ export default function StudentDetailPage() {
         )}
       </div>
 
-      <StudentForm
-        initial={{
-          ...student,
-          // pincode/location live on applications, not the students table — pull
-          // from the most recent application so Section B shows the saved value.
-          pincode: [...student.applications].sort((a, b) =>
-            b.financialYear.localeCompare(a.financialYear)
-          )[0]?.pincode ?? "",
-          location: [...student.applications].sort((a, b) =>
-            b.financialYear.localeCompare(a.financialYear)
-          )[0]?.location ?? "",
-        }}
-        submitLabel="Save Changes"
-        onSubmit={handleSubmit}
-        session={session}
-      />
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-cream-300 bg-cream-50/70 px-4 py-3">
+        <p className="text-sm text-stone-500">
+          This is a read-only record.{" "}
+          {canEdit
+            ? "Open a year with Edit above to change any of these details."
+            : "Staff admins can submit new applications but cannot edit existing records."}
+        </p>
+      </div>
 
-      {reviewApp && (
-        <ReviewApplicationModal
-          app={reviewApp}
-          onClose={() => setReviewApp(null)}
-          // Decided here means this one is off the queue — go straight back to
-          // the approvals list to pick up the next application.
-          onDecided={() => router.push("/admin/applications")}
-        />
-      )}
+      <div className="space-y-5">
+        <Section title="A) Student Details">
+          <Field label="Pete" value={student.pete_name} />
+          <Field label="Student's Name" value={student.name} />
+          <Field label="Mobile No." value={student.mobile} />
+          <Field label="Date of Birth" value={fmtDob(student.dob)} />
+          <Field label="Aadhar Number" value={student.aadhar} />
+          <Field label="School / College" value={student.school_name} />
+          <div>
+            <p className="text-[11px] font-bold tracking-wider text-stone-400 uppercase">
+              Student Photo
+            </p>
+            {student.photo_path ? (
+              <button
+                type="button"
+                onClick={() => setLightbox(student.photo_path)}
+                className="mt-1.5 h-28 w-24 cursor-zoom-in overflow-hidden rounded-xl ring-1 ring-cream-300"
+                title="Click to enlarge"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={student.photo_path}
+                  alt={student.name}
+                  className="h-full w-full object-cover"
+                />
+              </button>
+            ) : (
+              <p className="mt-0.5 text-sm font-medium text-stone-800">—</p>
+            )}
+          </div>
+        </Section>
+
+        <Section title="B) Family Details">
+          <Field label="Father's Name" value={student.father_name} />
+          <Field label="Father's Occupation" value={student.father_occupation} />
+          <Field label="Mother's Name" value={student.mother_name} />
+          <Field label="Residential Address" value={student.address} />
+          <Field label="Family Annual Income (₹)" value={student.family_income} />
+          <Field label="Contact Phone" value={student.contact_phone} />
+        </Section>
+
+        <Section title="C) Student's Bank Details">
+          <Field label="Bank Account Number" value={student.bank_account} />
+          <Field label="IFSC Code" value={student.ifsc} />
+          <Field label="Bank Name" value={student.bank_name} />
+          <Field label="Branch" value={student.bank_branch} />
+          <div>
+            <p className="text-[11px] font-bold tracking-wider text-stone-400 uppercase">
+              Bank Pass Book
+            </p>
+            {student.passbook_path ? (
+              isPdf ? (
+                <a
+                  href={student.passbook_path}
+                  target="_blank"
+                  className="mt-0.5 inline-block text-sm font-bold text-maroon-700 underline"
+                >
+                  View PDF
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setLightbox(student.passbook_path)}
+                  className="mt-1.5 h-28 w-24 cursor-zoom-in overflow-hidden rounded-xl ring-1 ring-cream-300"
+                  title="Click to enlarge"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={student.passbook_path}
+                    alt="Bank pass book"
+                    className="h-full w-full object-cover"
+                  />
+                </button>
+              )
+            ) : (
+              <p className="mt-0.5 text-sm font-medium text-stone-800">—</p>
+            )}
+          </div>
+        </Section>
+      </div>
+
+      {lightbox && <ImageLightbox src={lightbox} onClose={() => setLightbox(null)} />}
     </div>
   );
 }

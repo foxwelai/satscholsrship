@@ -189,12 +189,24 @@ export default function StudentForm({
   onSubmit,
   session,
   children,
+  actions,
+  hideLocation = false,
 }: {
   initial?: Record<string, unknown>;
   submitLabel: string;
-  onSubmit: (values: StudentFormValues) => Promise<string | null>; // returns error or null
+  // Returns an error, or null. `intent` is the `value` of the button that
+  // submitted the form, so extra actions can be told apart from a plain save.
+  onSubmit: (values: StudentFormValues, intent: string) => Promise<string | null>;
   session?: Session | null;
   children?: React.ReactNode;
+  // Extra submit buttons shown beside the main one — they go through the same
+  // onSubmit (identified by their `value`), so nothing typed into the form is
+  // lost to a side action. Given the in-flight flag so they can disable
+  // themselves while a save runs.
+  actions?: (saving: boolean) => React.ReactNode;
+  // Pincode and place live on the application, not the student. Pages that
+  // edit a specific application show them there instead of duplicating them.
+  hideLocation?: boolean;
 }) {
   const [values, setValues] = useState<StudentFormValues>(() => {
     const merged: StudentFormValues = { ...EMPTY };
@@ -256,11 +268,12 @@ export default function StudentForm({
     }
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const submitter = (e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
     setError("");
     setSaving(true);
-    const err = await onSubmit(values);
+    const err = await onSubmit(values, submitter?.value || "save");
     setSaving(false);
     if (err) {
       setError(err);
@@ -361,29 +374,33 @@ export default function StudentForm({
           required
           placeholder="e.g. Bolandugutturoad, Hosabettu, Manjeshwar"
         />
-        <label className="block">
-          <span className="label">Pincode</span>
-          <input
-            type="text"
-            value={values.pincode}
-            onChange={(e) => {
-              const pin = e.target.value.replace(/\D/g, "").slice(0, 6);
-              // Drop the old place the moment the pincode changes, so a failed
-              // lookup cannot leave the previous one attached to it.
-              setValues((prev) => ({ ...prev, pincode: pin, location: "" }));
-              if (pin.length === 6) lookupPincode(pin);
-            }}
-            placeholder="6-digit pincode — auto-fills location"
-            maxLength={6}
-            className="input"
+        {!hideLocation && (
+          <label className="block">
+            <span className="label">Pincode</span>
+            <input
+              type="text"
+              value={values.pincode}
+              onChange={(e) => {
+                const pin = e.target.value.replace(/\D/g, "").slice(0, 6);
+                // Drop the old place the moment the pincode changes, so a failed
+                // lookup cannot leave the previous one attached to it.
+                setValues((prev) => ({ ...prev, pincode: pin, location: "" }));
+                if (pin.length === 6) lookupPincode(pin);
+              }}
+              placeholder="6-digit pincode — auto-fills location"
+              maxLength={6}
+              className="input"
+            />
+          </label>
+        )}
+        {!hideLocation && (
+          <Input
+            label="Place / Location"
+            value={values.location}
+            onChange={set("location")}
+            placeholder="Auto-filled from the pincode — edit if it is wrong"
           />
-        </label>
-        <Input
-          label="Place / Location"
-          value={values.location}
-          onChange={set("location")}
-          placeholder="Auto-filled from the pincode — edit if it is wrong"
-        />
+        )}
         <Input label="Mother's Name" value={values.mother_name} onChange={set("mother_name")} />
         <Input label="Family Annual Income (₹)" value={values.family_income} onChange={set("family_income")} />
         <Input label="Contact Phone / Mobile No." value={values.contact_phone} onChange={set("contact_phone")} />
@@ -432,13 +449,16 @@ export default function StudentForm({
 
       {children}
 
-      <button
-        type="submit"
-        disabled={saving}
-        className="btn-primary w-full py-3.5 text-base md:w-auto md:px-12"
-      >
-        {saving ? "Saving…" : submitLabel}
-      </button>
+      <div className="flex flex-wrap gap-3">
+        <button
+          type="submit"
+          disabled={saving}
+          className="btn-primary w-full py-3.5 text-base md:w-auto md:px-12"
+        >
+          {saving ? "Saving…" : submitLabel}
+        </button>
+        {actions?.(saving)}
+      </div>
     </form>
   );
 }
