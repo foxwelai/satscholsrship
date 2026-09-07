@@ -50,6 +50,7 @@ export default function ReportsPage() {
   const [rows, setRows] = useState<Row[] | null>(null);
   const [years, setYears] = useState<string[]>([]);
   const [pdfBusy, setPdfBusy] = useState(false);
+  const [xlsxBusy, setXlsxBusy] = useState(false);
 
   const isPeteAdmin = session?.role === "pete_admin";
 
@@ -137,43 +138,202 @@ export default function ReportsPage() {
       .join("-");
   }
 
+  // Columns shared by both exports. The screen table omits Pete and Category
+  // because a filter already pins them; an exported file has to stand alone.
+  const EXPORT_COLUMNS = [
+    "Student ID",
+    "Name",
+    "Pete",
+    "Category",
+    "Class / Course",
+    "Bank",
+    "Bank Branch",
+    "Account No",
+    "IFSC",
+    "Amount (Rs.)",
+  ];
+  const AMOUNT_COL = EXPORT_COLUMNS.indexOf("Amount (Rs.)");
+  const ACCOUNT_COL = EXPORT_COLUMNS.indexOf("Account No");
+
+  function exportCells(r: Row) {
+    return [
+      r.student_id,
+      r.name,
+      r.pete_name,
+      r.category,
+      [r.current_class, r.course_name].filter(Boolean).join(" — "),
+      r.bank_name,
+      r.bank_branch,
+      r.bank_account,
+      r.ifsc,
+      r.scholarship_amount,
+    ];
+  }
+
   function csvCell(v: unknown) {
     return `"${String(v ?? "").replace(/"/g, '""')}"`;
   }
 
+  // Excel coerces bare digit strings: a leading zero disappears and anything
+  // past 15 digits is rounded off to zeros. Account numbers are written as a
+  // text formula instead, which Excel and Google Sheets both render as the
+  // exact digits. See the Excel export for the clean, untricked version.
+  function csvTextCell(v: unknown) {
+    const text = String(v ?? "");
+    return text ? `="${text.replace(/"/g, '""')}"` : '""';
+  }
+
   function exportCsv() {
     if (!rows) return;
-    const header = [
-      "Student ID", "Name", "Class / Course", "Bank", "Branch", "Account No", "IFSC", "Amount",
-    ];
-    const lines: string[] = [csvCell(headerLine), header.map(csvCell).join(",")];
-    const rowToLine = (r: Row) =>
+    const blank = '""';
+    const rowToLine = (r: Row) => {
+      const cells = exportCells(r);
+      return cells
+        .map((v, i) =>
+          i === AMOUNT_COL ? String(v) : i === ACCOUNT_COL ? csvTextCell(v) : csvCell(v)
+        )
+        .join(",");
+    };
+    // Totals go in the Amount column so the sheet can add them up.
+    const totalLine = (label: string, amount: number) =>
       [
-        r.student_id,
-        r.name,
-        [r.current_class, r.course_name].filter(Boolean).join(" — "),
-        r.bank_name,
-        r.bank_branch,
-        r.bank_account,
-        r.ifsc,
-        r.scholarship_amount,
-      ].map(csvCell).join(",");
+        csvCell(label),
+        ...Array(EXPORT_COLUMNS.length - 2).fill(blank),
+        String(amount),
+      ].join(",");
+
+    const lines: string[] = [
+      csvCell(headerLine),
+      EXPORT_COLUMNS.map(csvCell).join(","),
+    ];
 
     if (mode === "flat") {
       rows.forEach((r) => lines.push(rowToLine(r)));
     } else {
       for (const g of groups) {
-        lines.push(csvCell(g.label));
+        lines.push([csvCell(g.label), ...Array(EXPORT_COLUMNS.length - 1).fill(blank)].join(","));
         g.list.forEach((r) => lines.push(rowToLine(r)));
-        lines.push(csvCell(`Subtotal — ${g.count} students, Rs. ${g.amount}`));
+        lines.push(totalLine(`Subtotal — ${g.label} (${g.count} students)`, g.amount));
       }
     }
-    lines.push(csvCell(`TOTAL — ${totals.count} students, Rs. ${totals.amount}`));
-    const blob = new Blob([lines.join("\n")], { type: "text/csv" });
+    lines.push(totalLine(`TOTAL — ${totals.count} students`, totals.amount));
+
+    // BOM so Excel reads it as UTF-8 — without it the em dashes and ₹ in the
+    // header line arrive as mojibake. CRLF per RFC 4180.
+    const csv = "\uFEFF" + lines.join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = `scholarship-report-${fileSuffix()}.csv`;
     a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  async function exportExcel() {
+    if (!rows || xlsxBusy) return;
+    setXlsxBusy(true);
+    try {
+      const ExcelJS = (await import("exceljs")).default;
+      const wb = new ExcelJS.Workbook();
+      wb.creator = "Srimath Anantheshwar Temple — Scholarship Portal";
+      wb.created = new Date();
+
+      const ws = wb.addWorksheet("Scholarship Report", {
+        pageSetup: { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
+      });
+      const MAROON = "FF6A1416";
+      const NAVY = "FF1E3A5F";
+      const last = EXPORT_COLUMNS.length;
+
+      function titleRow(text: string, size: number, bold: boolean) {
+        const row = ws.addRow([text]);
+        ws.mergeCells(row.number, 1, row.number, last);
+        row.getCell(1).font = { bold, size, color: { argb: MAROON } };
+        row.getCell(1).alignment = { horizontal: "center" };
+        return row;
+      }
+      titleRow("Srimath Anantheshwar Temple, Manjeshwar (Kerala)", 14, true);
+      titleRow("Student Scholarship Report (Approved Applications)", 11, true);
+      titleRow(headerLine.replace(/₹/g, "Rs. "), 10, false);
+      ws.addRow([]);
+
+      function headerRow() {
+        const row = ws.addRow(EXPORT_COLUMNS);
+        row.eachCell((cell) => {
+          cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+          cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: MAROON } };
+          cell.alignment = { vertical: "middle", wrapText: true };
+        });
+        return row;
+      }
+
+      function dataRow(r: Row) {
+        const row = ws.addRow(exportCells(r));
+        // Written as text with an explicit text format, so a leading zero
+        // survives and a long number is never rounded.
+        const account = row.getCell(ACCOUNT_COL + 1);
+        account.value = r.bank_account;
+        account.numFmt = "@";
+        account.alignment = { horizontal: "left" };
+        const amount = row.getCell(last);
+        amount.numFmt = "#,##0";
+        return row;
+      }
+
+      function subtotalRow(label: string, amount: number) {
+        const row = ws.addRow([label]);
+        ws.mergeCells(row.number, 1, row.number, last - 1);
+        row.getCell(1).font = { bold: true };
+        row.getCell(1).alignment = { horizontal: "right" };
+        const cell = row.getCell(last);
+        cell.value = amount;
+        cell.numFmt = "#,##0";
+        cell.font = { bold: true };
+        return row;
+      }
+
+      if (mode === "flat") {
+        headerRow();
+        rows.forEach(dataRow);
+      } else {
+        for (const g of groups) {
+          const band = ws.addRow([g.label]);
+          ws.mergeCells(band.number, 1, band.number, last);
+          band.getCell(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+          band.getCell(1).fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: NAVY },
+          };
+          headerRow();
+          g.list.forEach(dataRow);
+          subtotalRow(`Subtotal — ${g.count} student${g.count !== 1 ? "s" : ""}`, g.amount);
+          ws.addRow([]);
+        }
+      }
+
+      const grand = subtotalRow(`TOTAL — ${totals.count} students`, totals.amount);
+      grand.eachCell((cell) => {
+        cell.font = { bold: true, color: { argb: MAROON }, size: 12 };
+      });
+
+      // getColumn rather than ws.columns — exceljs only populates that lazily.
+      [14, 26, 14, 14, 30, 24, 18, 22, 14, 14].forEach((w, i) => {
+        ws.getColumn(i + 1).width = w;
+      });
+
+      const buffer = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `scholarship-report-${fileSuffix()}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } finally {
+      setXlsxBusy(false);
+    }
   }
 
   async function exportPdf() {
@@ -218,20 +378,12 @@ export default function ReportsPage() {
         { align: "center" }
       );
 
-      const head = [
-        ["Student ID", "Name", "Class / Course", "Bank", "Branch", "Account No", "IFSC", "Amount (Rs.)"],
-      ];
-      const rowToArr = (r: Row) => [
-        r.student_id,
-        r.name,
-        [r.current_class, r.course_name].filter(Boolean).join(" — "),
-        r.bank_name,
-        r.bank_branch,
-        r.bank_account,
-        r.ifsc,
-        r.scholarship_amount.toLocaleString("en-IN"),
-      ];
-      const amountCol = 7;
+      const head = [EXPORT_COLUMNS];
+      const rowToArr = (r: Row) =>
+        exportCells(r).map((v, i) =>
+          i === AMOUNT_COL ? Number(v).toLocaleString("en-IN") : String(v)
+        );
+      const amountCol = AMOUNT_COL;
       const commonStyles = {
         styles: { fontSize: 8, cellPadding: 1.8 },
         columnStyles: { [amountCol]: { halign: "right" as const } },
@@ -286,6 +438,10 @@ export default function ReportsPage() {
     }
   }
 
+  // A pinned pete is already named in the header line; a consolidated report
+  // needs the column, or bank branches like KUMBALA read as pete names.
+  const showPeteColumn = !isSpecificPete;
+
   function RowCells({ r }: { r: Row }) {
     return (
       <>
@@ -298,6 +454,7 @@ export default function ReportsPage() {
           </Link>
         </td>
         <td className="font-medium">{r.name}</td>
+        {showPeteColumn && <td>{r.pete_name}</td>}
         <td className="text-sm">{[r.current_class, r.course_name].filter(Boolean).join(" — ")}</td>
         <td>{r.bank_name}</td>
         <td>{r.bank_branch}</td>
@@ -308,7 +465,7 @@ export default function ReportsPage() {
     );
   }
 
-  const colCount = 8;
+  const colCount = showPeteColumn ? 9 : 8;
 
   return (
     <div>
@@ -320,6 +477,9 @@ export default function ReportsPage() {
         <div className="flex gap-2">
           <button onClick={exportCsv} className="btn-secondary">
             ⬇️ CSV
+          </button>
+          <button onClick={exportExcel} disabled={xlsxBusy || !rows} className="btn-secondary">
+            {xlsxBusy ? "Preparing…" : "📗 Excel"}
           </button>
           <button onClick={exportPdf} disabled={pdfBusy || !rows} className="btn-navy">
             {pdfBusy ? "Preparing…" : "📄 Download PDF"}
@@ -410,9 +570,10 @@ export default function ReportsPage() {
                 <tr>
                   <th>Student ID</th>
                   <th>Name</th>
+                  {showPeteColumn && <th>Pete</th>}
                   <th>Class / Course</th>
                   <th>Bank</th>
-                  <th>Branch</th>
+                  <th>Bank Branch</th>
                   <th>Account No</th>
                   <th>IFSC</th>
                   <th className="text-right!">Amount</th>

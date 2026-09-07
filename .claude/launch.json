@@ -3,9 +3,17 @@
   "configurations": [
     {
       "name": "sat-scholarship",
+      "url": "http://localhost:3002",
+      "port": 3002
+    },
+    {
+      "name": "sat-scholarship-spawn",
       "cwd": "/Users/foxwel.ai/Documents/SAT_Scholarship",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 3000,
       "autoPort": true
     }
