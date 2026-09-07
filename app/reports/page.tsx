@@ -147,7 +147,7 @@ export default function ReportsPage() {
     "Category",
     "Class / Course",
     "Bank",
-    "Branch",
+    "Bank Branch",
     "Account No",
     "IFSC",
     "Amount (Rs.)",
@@ -378,20 +378,12 @@ export default function ReportsPage() {
         { align: "center" }
       );
 
-      const head = [
-        ["Student ID", "Name", "Class / Course", "Bank", "Branch", "Account No", "IFSC", "Amount (Rs.)"],
-      ];
-      const rowToArr = (r: Row) => [
-        r.student_id,
-        r.name,
-        [r.current_class, r.course_name].filter(Boolean).join(" — "),
-        r.bank_name,
-        r.bank_branch,
-        r.bank_account,
-        r.ifsc,
-        r.scholarship_amount.toLocaleString("en-IN"),
-      ];
-      const amountCol = 7;
+      const head = [EXPORT_COLUMNS];
+      const rowToArr = (r: Row) =>
+        exportCells(r).map((v, i) =>
+          i === AMOUNT_COL ? Number(v).toLocaleString("en-IN") : String(v)
+        );
+      const amountCol = AMOUNT_COL;
       const commonStyles = {
         styles: { fontSize: 8, cellPadding: 1.8 },
         columnStyles: { [amountCol]: { halign: "right" as const } },
@@ -446,6 +438,10 @@ export default function ReportsPage() {
     }
   }
 
+  // A pinned pete is already named in the header line; a consolidated report
+  // needs the column, or bank branches like KUMBALA read as pete names.
+  const showPeteColumn = !isSpecificPete;
+
   function RowCells({ r }: { r: Row }) {
     return (
       <>
@@ -458,6 +454,7 @@ export default function ReportsPage() {
           </Link>
         </td>
         <td className="font-medium">{r.name}</td>
+        {showPeteColumn && <td>{r.pete_name}</td>}
         <td className="text-sm">{[r.current_class, r.course_name].filter(Boolean).join(" — ")}</td>
         <td>{r.bank_name}</td>
         <td>{r.bank_branch}</td>
@@ -468,7 +465,7 @@ export default function ReportsPage() {
     );
   }
 
-  const colCount = 8;
+  const colCount = showPeteColumn ? 9 : 8;
 
   return (
     <div>
@@ -573,9 +570,10 @@ export default function ReportsPage() {
                 <tr>
                   <th>Student ID</th>
                   <th>Name</th>
+                  {showPeteColumn && <th>Pete</th>}
                   <th>Class / Course</th>
                   <th>Bank</th>
-                  <th>Branch</th>
+                  <th>Bank Branch</th>
                   <th>Account No</th>
                   <th>IFSC</th>
                   <th className="text-right!">Amount</th>
