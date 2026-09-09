@@ -34,6 +34,7 @@ const MODES = [
   { key: "flat", label: "Consolidated" },
   { key: "bank", label: "Bank-wise" },
   { key: "class", label: "Class-wise" },
+  { key: "summary", label: "Summary" },
 ];
 
 function inr(n: number) {
@@ -59,6 +60,12 @@ export default function ReportsPage() {
   }, []);
 
   useEffect(() => {
+    // The first load runs unfiltered while the year is still unknown, and that
+    // query is several times slower than the filtered one that replaces it.
+    // Dropping a stale reply keeps a slow earlier response from overwriting the
+    // rows for the filter now selected — switching pete twice in quick
+    // succession is the case that would otherwise show the wrong pete.
+    let active = true;
     const params = new URLSearchParams();
     if (peteId) params.set("pete_id", peteId);
     if (financialYear) params.set("financial_year", financialYear);
@@ -66,10 +73,15 @@ export default function ReportsPage() {
     fetch(`/api/reports?${params}`)
       .then((r) => r.json())
       .then((data) => {
+        if (!active) return;
         setRows(data.students ?? []);
         setYears(data.years ?? []);
         if (!financialYear && data.years?.length) setFinancialYear(data.years[0]);
-      });
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [peteId, financialYear, bankGroup]);
 
@@ -126,6 +138,51 @@ export default function ReportsPage() {
         amount: list.reduce((s, r) => s + r.scholarship_amount, 0),
       }));
   }, [rows, mode]);
+
+  // Pete × category headcount. Built from the same filtered rows as every other
+  // mode, so it counts approved applications only, exactly like the detail
+  // report it sits beside.
+  const summary = useMemo(() => {
+    if (!rows) return null;
+    const rank = (c: string) => {
+      const i = (CATEGORIES as readonly string[]).indexOf(c);
+      return i === -1 ? CATEGORIES.length : i;
+    };
+    const categories = [...new Set(rows.map((r) => r.category || "(Not recorded)"))].sort(
+      (a, b) => rank(a) - rank(b) || a.localeCompare(b)
+    );
+    const byPete = new Map<string, Map<string, number>>();
+    for (const r of rows) {
+      const pete = r.pete_name || "(No pete)";
+      const cat = r.category || "(Not recorded)";
+      if (!byPete.has(pete)) byPete.set(pete, new Map());
+      const counts = byPete.get(pete)!;
+      counts.set(cat, (counts.get(cat) ?? 0) + 1);
+    }
+    const peteRows = [...byPete.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([pete, counts]) => ({
+        pete,
+        counts: categories.map((c) => counts.get(c) ?? 0),
+        total: [...counts.values()].reduce((sum, n) => sum + n, 0),
+      }));
+    return {
+      categories,
+      peteRows,
+      columnTotals: categories.map((_, i) =>
+        peteRows.reduce((sum, r) => sum + r.counts[i], 0)
+      ),
+      grandTotal: peteRows.reduce((sum, r) => sum + r.total, 0),
+    };
+  }, [rows]);
+
+  // Summary exports carry the matrix rather than the student rows.
+  function summaryTable(): { header: string[]; body: (string | number)[][]; total: (string | number)[] } {
+    const header = ["Pete", ...(summary?.categories ?? []), "Total"];
+    const body = (summary?.peteRows ?? []).map((r) => [r.pete, ...r.counts, r.total]);
+    const total = ["TOTAL", ...(summary?.columnTotals ?? []), summary?.grandTotal ?? 0];
+    return { header, body, total };
+  }
 
   function fileSuffix() {
     return [
@@ -202,10 +259,20 @@ export default function ReportsPage() {
         String(amount),
       ].join(",");
 
-    const lines: string[] = [
-      csvCell(headerLine),
-      EXPORT_COLUMNS.map(csvCell).join(","),
-    ];
+    const lines: string[] = [csvCell(headerLine)];
+
+    if (mode === "summary") {
+      const { header, body, total } = summaryTable();
+      lines.push(header.map(csvCell).join(","));
+      body.forEach((r) =>
+        lines.push(r.map((v, i) => (i === 0 ? csvCell(v) : String(v))).join(","))
+      );
+      lines.push(total.map((v, i) => (i === 0 ? csvCell(v) : String(v))).join(","));
+      downloadCsv(lines);
+      return;
+    }
+
+    lines.push(EXPORT_COLUMNS.map(csvCell).join(","));
 
     if (mode === "flat") {
       rows.forEach((r) => lines.push(rowToLine(r)));
@@ -217,7 +284,18 @@ export default function ReportsPage() {
       }
     }
     lines.push(totalLine(`TOTAL — ${totals.count} students`, totals.amount));
+    downloadCsv(lines);
+  }
 
+  function downloadBlob(blob: Blob, name: string) {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `scholarship-report-${name}`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function downloadCsv(lines: string[]) {
     // BOM so Excel reads it as UTF-8 — without it the em dashes and ₹ in the
     // header line arrive as mojibake. CRLF per RFC 4180.
     const csv = "\uFEFF" + lines.join("\r\n");
@@ -292,6 +370,31 @@ export default function ReportsPage() {
         return row;
       }
 
+      if (mode === "summary") {
+        const { header, body, total } = summaryTable();
+        const head = ws.addRow(header);
+        head.eachCell((cell) => {
+          cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+          cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: MAROON } };
+        });
+        body.forEach((r) => ws.addRow(r));
+        const totalRow = ws.addRow(total);
+        totalRow.eachCell((cell) => {
+          cell.font = { bold: true, color: { argb: MAROON } };
+        });
+        [22, ...header.slice(1).map(() => 16)].forEach((w, i) => {
+          ws.getColumn(i + 1).width = w;
+        });
+        const buf = await wb.xlsx.writeBuffer();
+        downloadBlob(
+          new Blob([buf], {
+            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          }),
+          `${fileSuffix()}.xlsx`
+        );
+        return;
+      }
+
       if (mode === "flat") {
         headerRow();
         rows.forEach(dataRow);
@@ -323,14 +426,12 @@ export default function ReportsPage() {
       });
 
       const buffer = await wb.xlsx.writeBuffer();
-      const blob = new Blob([buffer], {
-        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = `scholarship-report-${fileSuffix()}.xlsx`;
-      a.click();
-      URL.revokeObjectURL(a.href);
+      downloadBlob(
+        new Blob([buffer], {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        }),
+        `${fileSuffix()}.xlsx`
+      );
     } finally {
       setXlsxBusy(false);
     }
@@ -390,6 +491,26 @@ export default function ReportsPage() {
       };
 
       let y = 35;
+      if (mode === "summary") {
+        const { header, body, total } = summaryTable();
+        autoTable(doc, {
+          startY: y,
+          head: [header],
+          body: [...body.map((r) => r.map(String)), total.map(String)],
+          headStyles: { fillColor: maroon, fontSize: 9 },
+          styles: { fontSize: 9, cellPadding: 2.4 },
+          columnStyles: Object.fromEntries(
+            header.map((_, i) => [i, { halign: i === 0 ? ("left" as const) : ("right" as const) }])
+          ),
+          didParseCell: (data) => {
+            if (data.section === "body" && data.row.index === body.length) {
+              data.cell.styles.fontStyle = "bold";
+            }
+          },
+        });
+        doc.save(`scholarship-report-${fileSuffix()}.pdf`);
+        return;
+      }
       if (mode === "flat") {
         autoTable(doc, {
           startY: y,
@@ -562,6 +683,52 @@ export default function ReportsPage() {
             Applications appear here once the super admin approves them.
           </p>
         </div>
+      ) : mode === "summary" && summary ? (
+        <>
+          <div className="table-card">
+            <table>
+              <thead>
+                <tr>
+                  <th>Pete</th>
+                  {summary.categories.map((c) => (
+                    <th key={c} className="text-right!">
+                      {c}
+                    </th>
+                  ))}
+                  <th className="text-right!">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {summary.peteRows.map((r) => (
+                  <tr key={r.pete}>
+                    <td className="font-medium">{r.pete}</td>
+                    {r.counts.map((n, i) => (
+                      <td key={summary.categories[i]} className="text-right">
+                        {n === 0 ? <span className="text-stone-300">—</span> : n}
+                      </td>
+                    ))}
+                    <td className="text-right font-semibold text-navy-800">{r.total}</td>
+                  </tr>
+                ))}
+                <tr>
+                  <td className="font-display text-maroon-900">TOTAL</td>
+                  {summary.columnTotals.map((n, i) => (
+                    <td
+                      key={summary.categories[i]}
+                      className="text-right font-bold text-maroon-900"
+                    >
+                      {n}
+                    </td>
+                  ))}
+                  <td className="text-right font-bold text-maroon-900">{summary.grandTotal}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-3 text-xs text-stone-400">
+            Counts approved applications only, the same basis as every other report here.
+          </p>
+        </>
       ) : (
         <>
           <div className="table-card">
