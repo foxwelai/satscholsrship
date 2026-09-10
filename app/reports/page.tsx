@@ -151,20 +151,22 @@ export default function ReportsPage() {
     const categories = [...new Set(rows.map((r) => r.category || "(Not recorded)"))].sort(
       (a, b) => rank(a) - rank(b) || a.localeCompare(b)
     );
-    const byPete = new Map<string, Map<string, number>>();
+    const byPete = new Map<string, { counts: Map<string, number>; amount: number }>();
     for (const r of rows) {
       const pete = r.pete_name || "(No pete)";
       const cat = r.category || "(Not recorded)";
-      if (!byPete.has(pete)) byPete.set(pete, new Map());
-      const counts = byPete.get(pete)!;
-      counts.set(cat, (counts.get(cat) ?? 0) + 1);
+      if (!byPete.has(pete)) byPete.set(pete, { counts: new Map(), amount: 0 });
+      const entry = byPete.get(pete)!;
+      entry.counts.set(cat, (entry.counts.get(cat) ?? 0) + 1);
+      entry.amount += r.scholarship_amount;
     }
     const peteRows = [...byPete.entries()]
       .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([pete, counts]) => ({
+      .map(([pete, entry]) => ({
         pete,
-        counts: categories.map((c) => counts.get(c) ?? 0),
-        total: [...counts.values()].reduce((sum, n) => sum + n, 0),
+        counts: categories.map((c) => entry.counts.get(c) ?? 0),
+        total: [...entry.counts.values()].reduce((sum, n) => sum + n, 0),
+        amount: entry.amount,
       }));
     return {
       categories,
@@ -173,14 +175,20 @@ export default function ReportsPage() {
         peteRows.reduce((sum, r) => sum + r.counts[i], 0)
       ),
       grandTotal: peteRows.reduce((sum, r) => sum + r.total, 0),
+      grandAmount: peteRows.reduce((sum, r) => sum + r.amount, 0),
     };
   }, [rows]);
 
   // Summary exports carry the matrix rather than the student rows.
   function summaryTable(): { header: string[]; body: (string | number)[][]; total: (string | number)[] } {
-    const header = ["Pete", ...(summary?.categories ?? []), "Total"];
-    const body = (summary?.peteRows ?? []).map((r) => [r.pete, ...r.counts, r.total]);
-    const total = ["TOTAL", ...(summary?.columnTotals ?? []), summary?.grandTotal ?? 0];
+    const header = ["Pete", ...(summary?.categories ?? []), "Total", "Amount (Rs.)"];
+    const body = (summary?.peteRows ?? []).map((r) => [r.pete, ...r.counts, r.total, r.amount]);
+    const total = [
+      "TOTAL",
+      ...(summary?.columnTotals ?? []),
+      summary?.grandTotal ?? 0,
+      summary?.grandAmount ?? 0,
+    ];
     return { header, body, total };
   }
 
@@ -377,11 +385,16 @@ export default function ReportsPage() {
           cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
           cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: MAROON } };
         });
-        body.forEach((r) => ws.addRow(r));
+        const amountCol = header.length;
+        const formatAmount = (row: import("exceljs").Row) => {
+          row.getCell(amountCol).numFmt = "#,##0";
+        };
+        body.forEach((r) => formatAmount(ws.addRow(r)));
         const totalRow = ws.addRow(total);
         totalRow.eachCell((cell) => {
           cell.font = { bold: true, color: { argb: MAROON } };
         });
+        formatAmount(totalRow);
         [22, ...header.slice(1).map(() => 16)].forEach((w, i) => {
           ws.getColumn(i + 1).width = w;
         });
@@ -496,7 +509,12 @@ export default function ReportsPage() {
         autoTable(doc, {
           startY: y,
           head: [header],
-          body: [...body.map((r) => r.map(String)), total.map(String)],
+          // Counts stay plain; only the trailing amount column is formatted.
+          body: [...body, total].map((r) =>
+            r.map((v, i) =>
+              i === r.length - 1 ? Number(v).toLocaleString("en-IN") : String(v)
+            )
+          ),
           headStyles: { fillColor: maroon, fontSize: 9 },
           styles: { fontSize: 9, cellPadding: 2.4 },
           columnStyles: Object.fromEntries(
@@ -696,6 +714,7 @@ export default function ReportsPage() {
                     </th>
                   ))}
                   <th className="text-right!">Total</th>
+                  <th className="text-right!">Amount</th>
                 </tr>
               </thead>
               <tbody>
@@ -708,6 +727,7 @@ export default function ReportsPage() {
                       </td>
                     ))}
                     <td className="text-right font-semibold text-navy-800">{r.total}</td>
+                    <td className="text-right font-semibold text-navy-800">{inr(r.amount)}</td>
                   </tr>
                 ))}
                 <tr>
@@ -721,6 +741,9 @@ export default function ReportsPage() {
                     </td>
                   ))}
                   <td className="text-right font-bold text-maroon-900">{summary.grandTotal}</td>
+                  <td className="text-right font-bold text-maroon-900">
+                    {inr(summary.grandAmount)}
+                  </td>
                 </tr>
               </tbody>
             </table>
